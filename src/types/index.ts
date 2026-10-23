@@ -1,0 +1,2 @@
+// Global types exports
+export {};

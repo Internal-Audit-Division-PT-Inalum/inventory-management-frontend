@@ -1,0 +1,2 @@
+// Pages routing exports
+export {};
