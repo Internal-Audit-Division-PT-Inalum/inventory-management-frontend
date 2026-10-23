@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# Inventory System Mobile PWA — Divisi Internal Audit PT INALUM
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi Progressive Web App (PWA) *Mobile-First & Offline-First* untuk pengelolaan mutasi inventaris, pengambilan barang habis pakai (*consumable*), serta peminjaman dan pengembalian aset alat kerja (*asset equipment*) di lingkungan Divisi Internal Audit (IIA) PT Indonesia Asahan Aluminium.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠️ Tech Stack & Arsitektur
 
-## React Compiler
+* **Framework**: React 19 + TypeScript (Strict Mode)
+* **Build Tool**: Vite 7
+* **PWA & Offline Storage**: `vite-plugin-pwa` + Workbox (App Shell Precaching) + Dexie.js (IndexedDB)
+* **Styling**: Tailwind CSS v4 + Class Variance Authority (CVA)
+* **State Management**: TanStack React Query v5 (Server State) + Zustand (Client & Auth State)
+* **Form & Validasi**: React Hook Form + Zod
+* **HTTP Client**: Axios (dengan Interceptor Sanctum Bearer & Server Date Skew Sync)
+* **Linter & Formatter**: Biome
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🚀 Fitur Utama
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. **Otentikasi Pegawai**: Login ramah mobile menggunakan Namecode PT INALUM dan 6-digit PIN dengan proteksi *brute-force lockout*.
+2. **Katalog & Pencarian Offline**: Sinkronisasi katalog penuh ke IndexedDB dengan validasi ETag/304 dan pencarian instan < 100ms.
+3. **Transaksi Cepat (Consumable & Asset)**:
+   - Pengambilan barang habis pakai (*Take Item*).
+   - Penambahan stok (*Add Item*).
+   - Peminjaman aset (*Borrow Asset*).
+   - Pengembalian aset parsial dengan alokasi FIFO (*Return Asset*).
+4. **Offline Resilience & Idempotent Sync**:
+   - Outbox queue lokal di IndexedDB.
+   - Replay-safe menggunakan `client_uuid` unik per transaksi.
+   - Deteksi pergeseran jam perangkat (*clock skew correction*).
+5. **Mobile First PWA**:
+   - Touch target standar WCAG AA (≥ 44px).
+   - Standalone display mode tanpa browser URL bar.
+   - Prompt instalasi (*Add to Home Screen*) untuk Android & iOS.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 💻 Pengembangan Lokal
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```bash
+# Instalasi dependensi
+npm install
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+# Menjalankan server pengembangan (Port 5174)
+npm run dev
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+# Memeriksa kualitas kode
+npm run lint
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Kompilasi & Build produksi
+npm run build
 ```
