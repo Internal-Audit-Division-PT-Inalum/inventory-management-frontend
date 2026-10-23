@@ -1,22 +1,43 @@
 {
-  "name": "frontend_cp",
+  "name": "inventory-pwa",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Inventory Management System Mobile PWA - Divisi Internal Audit PT INALUM",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "biome lint ./src",
+    "format": "biome format --write ./src",
+    "check": "biome check --write ./src",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.2",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-query": "^5.104.5",
+    "axios": "^1.20.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dexie": "^4.4.6",
+    "lucide-react": "^1.61.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.18"
+    "react-hook-form": "^7.90.0",
+    "react-router-dom": "^7.18.4",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.1.18",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.2",
     "@eslint/js": "^9.39.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -24,9 +45,14 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "fake-indexeddb": "^6.2.6",
     "globals": "^16.5.0",
+    "jsdom": "^29.1.1",
+    "msw": "^3.0.3",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5"
   }
 }
