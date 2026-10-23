@@ -1,63 +1,87 @@
-function App() {
-  return (
-    <div className="relative min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-indigo-900 overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{ top: '10%', left: '20%', animationDelay: '0s' }}></div>
-        <div className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{ top: '20%', left: '80%', animationDelay: '0.5s' }}></div>
-        <div className="absolute w-2 h-2 bg-white rounded-full animate-pulse" style={{ top: '40%', left: '10%', animationDelay: '1s' }}></div>
-        <div className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{ top: '60%', left: '90%', animationDelay: '1.5s' }}></div>
-        <div className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{ top: '80%', left: '30%', animationDelay: '2s' }}></div>
-        <div className="absolute w-2 h-2 bg-purple-300 rounded-full animate-pulse" style={{ top: '15%', left: '60%', animationDelay: '0.3s' }}></div>
-        <div className="absolute w-1 h-1 bg-blue-300 rounded-full animate-pulse" style={{ top: '70%', left: '70%', animationDelay: '1.2s' }}></div>
-        <div className="absolute w-1 h-1 bg-white rounded-full animate-pulse" style={{ top: '30%', left: '50%', animationDelay: '0.8s' }}></div>
-      </div>
+export default function App() {
+	return (
+		<div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+			{/* Header Mobile Brand */}
+			<header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md">
+				<div className="flex items-center gap-2.5">
+					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-800 text-white font-bold text-xs shadow-sm">
+						IIA
+					</div>
+					<div>
+						<h1 className="text-sm font-bold tracking-tight text-slate-900 leading-tight">
+							INVENTORY SYSTEM
+						</h1>
+						<p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+							Internal Audit PT INALUM
+						</p>
+					</div>
+				</div>
 
-      <div className="relative z-10">
-        <section className="min-h-screen flex items-center justify-center px-4">
-          <div className="text-center">
-            <div className="mb-8 animate-bounce">
-              <span className="inline-block px-6 py-2 bg-purple-500/30 backdrop-blur-sm border border-purple-400/50 text-purple-200 rounded-full text-sm font-semibold">🚀 Welcome to Space</span>
-            </div>
+				<div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 border border-emerald-200/60">
+					<span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+					<span className="text-[10px] font-semibold text-emerald-700">
+						Online
+					</span>
+				</div>
+			</header>
 
-            <h1 className="text-6xl md:text-8xl font-bold mb-6 animate-pulse">
-              <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-2xl">Starter Pack</span>
-            </h1>
+			{/* Main Content Placeholder */}
+			<main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-800 border border-blue-100 shadow-sm mb-4">
+					<svg
+						className="h-8 w-8"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						role="img"
+						aria-label="Logo Inventaris"
+					>
+						<title>Logo Inventaris</title>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={2}
+							d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+						/>
+					</svg>
+				</div>
 
-            <p className="text-xl md:text-2xl text-purple-200 mb-12 max-w-2xl mx-auto">Explore the universe of possibilities with modern web development</p>
+				<h2 className="text-lg font-bold text-slate-800 mb-1">
+					PWA Mobile Inventory Foundation
+				</h2>
+				<p className="text-xs text-slate-500 max-w-xs mb-6">
+					Fondasi sistem inventaris Divisi Internal Audit PT INALUM sedang
+					diinisialisasi.
+				</p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="group px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 transform hover:scale-110">
-                <span className="flex items-center justify-center gap-2">
-                  Launch App
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </span>
-              </button>
-              <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full font-semibold border border-white/30 hover:bg-white/20 transition-all duration-300 transform hover:scale-110">Learn More</button>
-            </div>
+				<div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-xs text-left">
+					<div className="text-xs font-semibold text-slate-700 mb-2 flex items-center justify-between">
+						<span>Status Fase P0:</span>
+						<span className="text-blue-700 font-bold">
+							Inisialisasi Fondasi
+						</span>
+					</div>
+					<div className="space-y-1.5 text-[11px] text-slate-600">
+						<div className="flex items-center gap-2">
+							<span className="text-emerald-600 font-bold">✓</span> Boilerplate
+							dibersihkan (P0.1)
+						</div>
+						<div className="flex items-center gap-2">
+							<span className="text-blue-600 font-bold">⏳</span> Dependensi
+							runtime & PWA (P0.2 - P0.3)
+						</div>
+						<div className="flex items-center gap-2">
+							<span className="text-slate-400 font-bold">○</span> Routing,
+							Dexie, & Design System (P0.4 - P0.8)
+						</div>
+					</div>
+				</div>
+			</main>
 
-            <div className="mt-20 flex justify-center gap-8 flex-wrap">
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 transform hover:scale-105 transition-all hover:bg-white/10 animate-pulse" style={{ animationDelay: '0s' }}>
-                <div className="text-3xl mb-2">⚡</div>
-                <div className="text-white font-semibold">Fast</div>
-              </div>
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 transform hover:scale-105 transition-all hover:bg-white/10 animate-pulse" style={{ animationDelay: '0.3s' }}>
-                <div className="text-3xl mb-2">🎨</div>
-                <div className="text-white font-semibold">Beautiful</div>
-              </div>
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 transform hover:scale-105 transition-all hover:bg-white/10 animate-pulse" style={{ animationDelay: '0.6s' }}>
-                <div className="text-3xl mb-2">🔒</div>
-                <div className="text-white font-semibold">Secure</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <footer className="py-8 text-center text-purple-300/60 text-sm">
-          <p>Mahesgya • 2026</p>
-        </footer>
-      </div>
-    </div>
-  );
+			{/* Mobile Footer */}
+			<footer className="border-t border-slate-200 bg-white py-3 text-center text-[10px] text-slate-400">
+				PT Indonesia Asahan Aluminium © 2026 — Internal Audit Division
+			</footer>
+		</div>
+	);
 }
-
-export default App;
