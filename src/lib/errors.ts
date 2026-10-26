@@ -82,7 +82,20 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 5. Penolakan Aturan Bisnis (409 Konflik, 422 Insufficient Stock, dll)
+	// 5. Rate Limiting / Akun Terkunci (429 / ACCOUNT_LOCKED)
+	if (status === 429 || backendCode === "ACCOUNT_LOCKED") {
+		return {
+			kind: "rejected",
+			code: backendCode || "ACCOUNT_LOCKED",
+			status,
+			message:
+				data?.message ||
+				ERROR_MESSAGE_MAP.ACCOUNT_LOCKED ||
+				"Akun terkunci sementara karena beberapa kali salah PIN. Silakan coba lagi nanti.",
+		};
+	}
+
+	// 6. Penolakan Aturan Bisnis (409 Konflik, 422 Insufficient Stock, dll)
 	if (backendCode && ERROR_MESSAGE_MAP[backendCode]) {
 		return {
 			kind: "rejected",
