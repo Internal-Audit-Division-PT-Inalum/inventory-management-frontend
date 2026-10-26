@@ -1,2 +1,4 @@
 // Pages routing exports
-export {};
+export * from "./ChangePinPage";
+export * from "./HomePage";
+export * from "./LoginPage";
