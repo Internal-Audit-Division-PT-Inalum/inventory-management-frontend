@@ -12,6 +12,7 @@
     "check": "biome check --write ./src",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ci": "biome check ./src && tsc -b && vitest run && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
