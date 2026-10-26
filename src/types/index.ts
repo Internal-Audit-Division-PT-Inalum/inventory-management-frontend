@@ -1,2 +1,1 @@
-// Global types exports
-export {};
+export * from "./api";
