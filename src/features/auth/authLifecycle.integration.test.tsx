@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppShell } from "@/components/layout/AppShell";
 import { AUTH_EXPIRED_EVENT, api } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ChangePinPage } from "@/pages/ChangePinPage";
@@ -35,7 +36,9 @@ function renderFullAuthApp(initialEntry = "/") {
 						<Route path="/change-pin" element={<ChangePinPage />} />
 					</Route>
 					<Route element={<ProtectedRoute />}>
-						<Route path="/" element={<HomePage />} />
+						<Route element={<AppShell />}>
+							<Route path="/" element={<HomePage />} />
+						</Route>
 					</Route>
 				</Routes>
 			</MemoryRouter>
@@ -155,8 +158,8 @@ describe("Fase P1: Full Employee Authentication Lifecycle Integration Test", () 
 		await waitFor(() => {
 			expect(screen.getByText("INVENTORY SYSTEM")).toBeDefined();
 			expect(screen.getByText(/Mahesa Gya/i)).toBeDefined();
-			expect(screen.getByText("MHS")).toBeDefined();
-			expect(screen.getByText("Online")).toBeDefined();
+			expect(screen.getAllByText("MHS").length).toBeGreaterThanOrEqual(1);
+			expect(screen.getAllByText("Online").length).toBeGreaterThanOrEqual(1);
 		});
 
 		// -------------------------------------------------------------------------

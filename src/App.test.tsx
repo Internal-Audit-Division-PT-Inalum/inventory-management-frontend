@@ -32,7 +32,7 @@ describe("App Root Component Smoke Test", () => {
 		);
 		expect(screen.getByText("INVENTORY SYSTEM")).toBeDefined();
 		expect(screen.getByText("Internal Audit PT INALUM")).toBeDefined();
-		expect(screen.getByText("Online")).toBeDefined();
+		expect(screen.getAllByText("Online").length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("renders the foundation status card", () => {
