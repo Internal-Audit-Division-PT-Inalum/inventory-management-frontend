@@ -1,2 +1,10 @@
-// Catalog feature module exports
-export {};
+export * from "./api/getCatalog";
+export * from "./api/getLocations";
+export * from "./api/syncCatalog";
+export * from "./components/CatalogView";
+export * from "./components/ItemCard";
+export * from "./components/SyncStatusBar";
+export * from "./hooks/useCatalogItems";
+export * from "./hooks/useCatalogLocations";
+export * from "./hooks/useCatalogSync";
+export * from "./lib/qrLanding";
