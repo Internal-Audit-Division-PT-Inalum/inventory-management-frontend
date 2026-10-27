@@ -9,6 +9,7 @@ import {
 import { db } from "./db";
 import { mapApiError } from "./errors";
 import { formatRelative, formatWib, setServerTimeOffset } from "./time";
+import { resolveMediaUrl } from "./utils";
 
 describe("Lib Utilities Unit Tests", () => {
 	beforeEach(() => {
@@ -212,5 +213,31 @@ describe("Lib Utilities Unit Tests", () => {
 
 		window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
 		await db.outbox.delete("test-uuid-p1-safe-outbox");
+	});
+
+	it("resolves media URLs correctly to relative paths for proxy and handles edge cases", () => {
+		expect(resolveMediaUrl(null)).toBeNull();
+		expect(resolveMediaUrl("")).toBeNull();
+		expect(resolveMediaUrl("   ")).toBeNull();
+
+		// Local storage path
+		expect(
+			resolveMediaUrl("http://localhost:8000/storage/item_images/1/thumb.webp"),
+		).toBe("/storage/item_images/1/thumb.webp");
+
+		// LAN IP storage path
+		expect(resolveMediaUrl("http://192.168.1.50:8000/storage/docs/a.pdf")).toBe(
+			"/storage/docs/a.pdf",
+		);
+
+		// Relative path without leading slash
+		expect(resolveMediaUrl("storage/item_images/1/thumb.webp")).toBe(
+			"/storage/item_images/1/thumb.webp",
+		);
+
+		// External URL
+		expect(resolveMediaUrl("https://images.unsplash.com/photo-123")).toBe(
+			"https://images.unsplash.com/photo-123",
+		);
 	});
 });
