@@ -15,6 +15,7 @@ import {
 	selectMustChangePin,
 	useAuthStore,
 } from "@/features/auth/store/authStore";
+import { getAndClearPostLoginRedirect } from "@/features/catalog";
 import type { AuthSession } from "@/types/api";
 
 export function LoginPage() {
@@ -47,9 +48,11 @@ export function LoginPage() {
 			if (mustChangePin) {
 				navigate("/change-pin", { replace: true });
 			} else {
-				const from =
-					(location.state as { from?: { pathname: string } })?.from?.pathname ||
-					"/";
+				const searchParams = new URLSearchParams(location.search);
+				const redirectParam = searchParams.get("redirect");
+				const from = getAndClearPostLoginRedirect(
+					redirectParam || (location.state as { from?: unknown })?.from,
+				);
 				navigate(from, { replace: true });
 			}
 		}
@@ -61,10 +64,9 @@ export function LoginPage() {
 		} else {
 			const searchParams = new URLSearchParams(location.search);
 			const redirectParam = searchParams.get("redirect");
-			const from =
-				redirectParam ||
-				(location.state as { from?: { pathname: string } })?.from?.pathname ||
-				"/";
+			const from = getAndClearPostLoginRedirect(
+				redirectParam || (location.state as { from?: unknown })?.from,
+			);
 			navigate(from, { replace: true });
 		}
 	};
