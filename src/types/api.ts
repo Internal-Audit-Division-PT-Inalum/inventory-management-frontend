@@ -38,6 +38,8 @@ export interface Item {
 	image_thumb_url?: string | null;
 	borrowed_quantity?: number | null;
 	stock_status?: KioskItemStockStatus;
+	description?: string | null;
+	is_active?: boolean;
 	location?: Location;
 	created_at?: string;
 	updated_at: string;
@@ -60,7 +62,8 @@ export interface InventoryLedger {
 	user?: {
 		id: string;
 		name: string;
-		email: string;
+		employee_name?: string | null;
+		email?: string;
 	};
 	item?: {
 		id: string;
