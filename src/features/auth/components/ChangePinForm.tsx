@@ -79,7 +79,6 @@ export function ChangePinForm({
 			noValidate
 			aria-label="Form Ganti PIN Keamanan"
 		>
-			{/* Banner Error Root */}
 			{rootError && !rootError.fieldErrors && (
 				<div
 					role="alert"
@@ -99,7 +98,6 @@ export function ChangePinForm({
 				</div>
 			)}
 
-			{/* Field: PIN Saat Ini */}
 			<div className="space-y-1.5">
 				<label
 					htmlFor="change-current-pin"
@@ -160,7 +158,6 @@ export function ChangePinForm({
 				)}
 			</div>
 
-			{/* Field: PIN Baru */}
 			<div className="space-y-1.5">
 				<label
 					htmlFor="change-new-pin"
@@ -217,7 +214,6 @@ export function ChangePinForm({
 				)}
 			</div>
 
-			{/* Field: Konfirmasi PIN Baru */}
 			<div className="space-y-1.5">
 				<label
 					htmlFor="change-confirm-pin"
@@ -272,7 +268,6 @@ export function ChangePinForm({
 				)}
 			</div>
 
-			{/* Tombol Simpan PIN */}
 			<Button
 				type="submit"
 				disabled={changePinMutation.isPending}

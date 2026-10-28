@@ -63,7 +63,6 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 			noValidate
 			aria-label="Form Login Pegawai"
 		>
-			{/* Error Banner */}
 			{error && (
 				<div
 					role="alert"
@@ -98,7 +97,6 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 				</div>
 			)}
 
-			{/* Field: Namecode */}
 			<div className="space-y-1.5">
 				<label
 					htmlFor="login-namecode"
@@ -148,7 +146,6 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 				)}
 			</div>
 
-			{/* Field: 6-Digit PIN */}
 			<div className="space-y-1.5">
 				<div className="flex items-center justify-between">
 					<label
@@ -206,7 +203,6 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 				)}
 			</div>
 
-			{/* Action: Submit Button */}
 			<Button
 				type="submit"
 				disabled={loginMutation.isPending}
