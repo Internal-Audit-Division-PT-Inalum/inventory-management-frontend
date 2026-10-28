@@ -100,7 +100,6 @@ export function InstallPromptBanner({
 							tetap aktif tanpa batas 7 hari Safari.
 						</p>
 
-						{/* Langkah-langkah Visual */}
 						<div className="mt-2.5 space-y-1.5 rounded-lg border border-blue-100 bg-white/90 p-2.5 text-[11px] text-slate-700">
 							<div className="flex items-center gap-2">
 								<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-[9px] text-[#004785]">

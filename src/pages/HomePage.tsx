@@ -24,7 +24,6 @@ export function HomePage() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Employee Welcome Card */}
 			{employee && (
 				<Card className="border-slate-200/80 bg-white shadow-xs">
 					<CardContent className="flex items-center justify-between p-4">
@@ -68,7 +67,6 @@ export function HomePage() {
 				</Card>
 			)}
 
-			{/* Foundation Status Card (P0 & P1 Status - Compatible with Smoke Tests) */}
 			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
 				<div className="flex items-center gap-3">
 					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-[#004785] shadow-xs">
@@ -88,12 +86,10 @@ export function HomePage() {
 				</div>
 			</div>
 
-			{/* Interactive Catalog View (Task P2.9) */}
 			<section aria-label="Katalog Inventaris">
 				<CatalogView />
 			</section>
 
-			{/* Dialog Konfirmasi Logout bila Ada Antrean Offline */}
 			<LogoutConfirmDialog
 				open={showWarningDialog}
 				onOpenChange={cancelLogout}

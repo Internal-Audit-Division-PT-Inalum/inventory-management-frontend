@@ -30,7 +30,6 @@ export function ProfilePage() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Page Header Info */}
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-lg font-bold text-slate-900">Profil Pegawai</h2>
@@ -40,7 +39,6 @@ export function ProfilePage() {
 				</div>
 			</div>
 
-			{/* Employee Identity Card */}
 			{employee && (
 				<Card className="border-slate-200/80 bg-white shadow-xs">
 					<CardContent className="p-5">
@@ -83,13 +81,11 @@ export function ProfilePage() {
 				</Card>
 			)}
 
-			{/* Actions Section */}
 			<div className="space-y-2">
 				<h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">
 					Pengaturan Akun & Keamanan
 				</h4>
 
-				{/* Ubah PIN */}
 				<Link
 					to="/change-pin"
 					className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:bg-slate-50 active:scale-98"
@@ -110,7 +106,6 @@ export function ProfilePage() {
 					<span className="text-xs font-semibold text-[#004785]">Buka</span>
 				</Link>
 
-				{/* Tombol Logout Aman */}
 				<button
 					type="button"
 					onClick={() => requestLogout()}
@@ -137,7 +132,6 @@ export function ProfilePage() {
 				</button>
 			</div>
 
-			{/* App Information Card */}
 			<Card className="border-slate-200/80 bg-white/70 shadow-xs">
 				<CardContent className="p-3.5 flex items-center gap-2.5 text-xs text-slate-500">
 					<Info className="h-4 w-4 shrink-0 text-slate-400" />
@@ -150,7 +144,6 @@ export function ProfilePage() {
 				</CardContent>
 			</Card>
 
-			{/* Dialog Konfirmasi Logout bila Ada Antrean Offline */}
 			<LogoutConfirmDialog
 				open={showWarningDialog}
 				onOpenChange={cancelLogout}

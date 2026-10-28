@@ -27,7 +27,6 @@ export function ChangePinPage() {
 
 	return (
 		<div className="flex min-h-screen flex-col justify-between bg-gradient-to-b from-slate-100 via-slate-50 to-white px-4 py-8 pt-safe pb-safe sm:px-6">
-			{/* Header Nav / Branding */}
 			<header className="mx-auto w-full max-w-md pt-2">
 				{!mustChangePin && (
 					<Link
@@ -69,7 +68,6 @@ export function ChangePinPage() {
 				</div>
 			</header>
 
-			{/* Main Form Section */}
 			<main className="mx-auto my-6 w-full max-w-md">
 				{employee && (
 					<div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2.5 text-xs shadow-2xs backdrop-blur-xs">
@@ -106,7 +104,6 @@ export function ChangePinPage() {
 					</CardContent>
 				</Card>
 
-				{/* Ketentuan Keamanan PIN */}
 				<div className="mt-5 rounded-xl border border-slate-200/60 bg-white/70 p-4 text-xs text-slate-600 shadow-2xs">
 					<div className="mb-2 flex items-center gap-1.5 font-semibold text-slate-800">
 						<ShieldCheck className="h-4 w-4 text-teal-600" />
@@ -126,7 +123,6 @@ export function ChangePinPage() {
 				</div>
 			</main>
 
-			{/* Footer */}
 			<footer className="mx-auto w-full max-w-md pb-2 text-center text-[11px] text-slate-400">
 				<p>© {new Date().getFullYear()} PT Indonesia Asahan Aluminium</p>
 			</footer>

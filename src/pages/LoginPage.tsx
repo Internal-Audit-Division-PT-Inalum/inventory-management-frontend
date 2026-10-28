@@ -73,7 +73,6 @@ export function LoginPage() {
 
 	return (
 		<div className="flex min-h-screen flex-col justify-between bg-gradient-to-b from-slate-100 via-slate-50 to-white px-4 py-8 pt-safe pb-safe sm:px-6">
-			{/* Top Branding Section */}
 			<header className="mx-auto w-full max-w-md pt-4 text-center sm:pt-8">
 				<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-2.5 shadow-md ring-1 ring-slate-200/80">
 					<img
@@ -93,9 +92,7 @@ export function LoginPage() {
 				</p>
 			</header>
 
-			{/* Main Form Section */}
 			<main className="mx-auto my-6 w-full max-w-md">
-				{/* Offline Alert Notice */}
 				{!isOnline && (
 					<div
 						role="status"
@@ -129,7 +126,6 @@ export function LoginPage() {
 					</CardContent>
 				</Card>
 
-				{/* Help & Support Note */}
 				<div className="mt-5 flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 p-3.5 text-xs text-slate-600 backdrop-blur-xs">
 					<Info className="mt-0.5 h-4 w-4 shrink-0 text-[#004785]" />
 					<p className="leading-relaxed">
@@ -142,7 +138,6 @@ export function LoginPage() {
 				</div>
 			</main>
 
-			{/* Corporate Footer */}
 			<footer className="mx-auto w-full max-w-md pb-2 text-center text-[11px] text-slate-400">
 				<p>© {new Date().getFullYear()} PT Indonesia Asahan Aluminium</p>
 				<p className="mt-0.5">Sistem Internal Visual Board & Inventaris v1.0</p>
