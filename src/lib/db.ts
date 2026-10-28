@@ -16,6 +16,7 @@ export interface OutboxItem {
 	employeeId: string;
 	operation: OutboxOperation;
 	itemId: string;
+	loanId?: string | null;
 	quantity: number;
 	notes?: string | null;
 	referenceNumber?: string | null;
@@ -27,6 +28,8 @@ export interface OutboxItem {
 		code?: string;
 		message: string;
 	} | null;
+	appliedDeltaStock?: number;
+	appliedDeltaBorrowed?: number;
 	createdAt: string;
 }
 
@@ -225,6 +228,55 @@ export class InventoryDatabase extends Dexie {
 			.where("status")
 			.anyOf(["pending", "syncing"])
 			.count();
+	}
+
+	/**
+	 * Ambil semua transaksi outbox yang sedang pending atau syncing.
+	 */
+	async getPendingOutboxItems(): Promise<OutboxItem[]> {
+		return await this.outbox
+			.where("status")
+			.anyOf(["pending", "syncing"])
+			.toArray();
+	}
+
+	/**
+	 * Simpan transaksi ke dalam antrean outbox secara atomik (Zero Data Loss).
+	 */
+	async enqueueOutboxItem(item: OutboxItem): Promise<void> {
+		await this.outbox.put(item);
+	}
+
+	/**
+	 * Perbarui status dan metadata entri outbox.
+	 */
+	async updateOutboxItem(
+		clientUuid: string,
+		changes: Partial<OutboxItem>,
+	): Promise<void> {
+		await this.outbox.update(clientUuid, changes);
+	}
+
+	/**
+	 * Dapatkan entri outbox berdasarkan clientUuid.
+	 */
+	async getOutboxItemByUuid(
+		clientUuid: string,
+	): Promise<OutboxItem | undefined> {
+		return await this.outbox.get(clientUuid);
+	}
+
+	/**
+	 * Ambil semua entri outbox terurut berdasarkan createdAt.
+	 */
+	async getOutboxItems(status?: OutboxStatus): Promise<OutboxItem[]> {
+		if (status) {
+			return await this.outbox
+				.where("status")
+				.equals(status)
+				.sortBy("createdAt");
+		}
+		return await this.outbox.orderBy("createdAt").reverse().toArray();
 	}
 }
 
