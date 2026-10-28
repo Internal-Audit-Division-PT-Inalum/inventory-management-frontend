@@ -7,6 +7,15 @@ import {
 	X,
 } from "lucide-react";
 import * as React from "react";
+import {
+	ItemDetailSheet,
+	type TransactionAction,
+	TransactionFeedbackBanner,
+	TransactionFeedbackDialog,
+	type TransactionFormData,
+	type TransactSubmitResult,
+	useTransactionSubmit,
+} from "@/features/transactions";
 import { cn } from "@/lib/utils";
 import type { InventoryItemType, Item } from "@/types/api";
 import {
@@ -30,6 +39,12 @@ export type CatalogSortOption =
 export interface CatalogViewProps {
 	className?: string;
 	onItemClick?: (item: Item) => void;
+	onActionSelect?: (item: Item, action: TransactionAction) => void;
+	onTransactSubmit?: (
+		item: Item,
+		action: TransactionAction,
+		data: TransactionFormData,
+	) => Promise<unknown> | unknown;
 }
 
 /**
@@ -41,9 +56,15 @@ export interface CatalogViewProps {
  * - Deteksi QR landing fisik dengan auto-select lokasi rak & banner informasi.
  * - Indikator kesegaran data SyncStatusBar terintegrasi.
  */
-export function CatalogView({ className, onItemClick }: CatalogViewProps) {
+export function CatalogView({
+	className,
+	onItemClick,
+	onActionSelect,
+	onTransactSubmit,
+}: CatalogViewProps) {
 	const qr = useQrLanding();
 	const { locations, locationMap } = useCatalogLocations();
+	const { submitTransaction, isSubmitting } = useTransactionSubmit();
 
 	// State filter lokal
 	const [searchQuery, setSearchQuery] = React.useState<string>("");
@@ -54,9 +75,28 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 	const [stockFilter, setStockFilter] =
 		React.useState<CatalogStockFilter>("all");
 	const [sortBy, setSortBy] = React.useState<CatalogSortOption>("name");
-	const [selectedItemToast, setSelectedItemToast] = React.useState<
-		string | null
-	>(null);
+	const [feedbackResult, setFeedbackResult] =
+		React.useState<TransactSubmitResult | null>(null);
+	const [feedbackItem, setFeedbackItem] = React.useState<Item | null>(null);
+	const [showFeedbackDialog, setShowFeedbackDialog] =
+		React.useState<boolean>(false);
+	const [detailItem, setDetailItem] = React.useState<Item | null>(null);
+
+	const handleTransactSubmit = async (
+		item: Item,
+		action: TransactionAction,
+		formData: TransactionFormData,
+	) => {
+		if (onTransactSubmit) {
+			await onTransactSubmit(item, action, formData);
+			return;
+		}
+
+		const result = await submitTransaction(item, action, formData);
+		setFeedbackResult(result);
+		setFeedbackItem(item);
+		setShowFeedbackDialog(true);
+	};
 
 	// Sinkronkan lokasi jika QR landing parameter berubah
 	React.useEffect(() => {
@@ -104,17 +144,14 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 		if (onItemClick) {
 			onItemClick(item);
 		} else {
-			setSelectedItemToast(`Memilih: ${item.name} (${item.sku})`);
-			setTimeout(() => setSelectedItemToast(null), 3000);
+			setDetailItem(item);
 		}
 	};
 
 	return (
 		<div className={cn("flex flex-col gap-3.5", className)}>
-			{/* Status Bar Kesegaran Data & Konektivitas */}
 			<SyncStatusBar onSync={refetch} />
 
-			{/* Banner Deteksi Landing dari QR Rak Fisik */}
 			{qr.isQrLanding && selectedLocationId && (
 				<div
 					data-testid="qr-landing-banner"
@@ -137,20 +174,13 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 				</div>
 			)}
 
-			{/* Toast Notifikasi Pemilihan Item (Stub Aksi Transaksi P3) */}
-			{selectedItemToast && (
-				<div
-					role="status"
-					className="rounded-xl border border-slate-200 bg-slate-900 px-3.5 py-2 text-xs text-white shadow-md animate-in fade-in slide-in-from-top-1"
-				>
-					{selectedItemToast}
-					<span className="block text-[10px] text-slate-400 mt-0.5">
-						Aksi Ambil/Pinjam barang akan aktif penuh pada Fase P3.
-					</span>
-				</div>
+			{feedbackResult && !showFeedbackDialog && (
+				<TransactionFeedbackBanner
+					result={feedbackResult}
+					onDismiss={() => setFeedbackResult(null)}
+				/>
 			)}
 
-			{/* Search Bar Input */}
 			<div className="relative w-full">
 				<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
 				<input
@@ -177,7 +207,6 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 				)}
 			</div>
 
-			{/* Horizontal Location Filter Chips */}
 			{locations.length > 0 && (
 				<div className="flex flex-col gap-1.5">
 					<div className="flex items-center justify-between px-0.5 text-[11px] font-semibold text-slate-600">
@@ -234,9 +263,7 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 				</div>
 			)}
 
-			{/* Secondary Filters Bar: Type Tabs, Stock Status, and Sort Options */}
 			<div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-2.5 text-xs">
-				{/* Type Toggle Tabs */}
 				<div
 					role="tablist"
 					aria-label="Filter jenis barang"
@@ -289,9 +316,7 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 					</button>
 				</div>
 
-				{/* Filter & Sort Controls */}
 				<div className="flex items-center gap-1.5 ml-auto">
-					{/* Status Stok Filter Dropdown */}
 					<div className="relative">
 						<select
 							value={stockFilter}
@@ -310,7 +335,6 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 						</select>
 					</div>
 
-					{/* Sorting Dropdown */}
 					<div className="relative">
 						<select
 							value={sortBy}
@@ -328,7 +352,6 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 				</div>
 			</div>
 
-			{/* Item Results Count & Active Filter Reset */}
 			<div className="flex items-center justify-between px-0.5 text-xs text-slate-500">
 				<span>
 					Menampilkan <strong className="text-slate-800">{items.length}</strong>{" "}
@@ -350,7 +373,6 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 				)}
 			</div>
 
-			{/* Item List / Grid */}
 			<div className="flex flex-col gap-2.5">
 				{isLoading ? (
 					Array.from({ length: 4 }).map((_, idx) => (
@@ -391,6 +413,27 @@ export function CatalogView({ className, onItemClick }: CatalogViewProps) {
 					))
 				)}
 			</div>
+
+			<ItemDetailSheet
+				item={detailItem}
+				open={Boolean(detailItem)}
+				enableInternalForm={true}
+				isSubmitting={isSubmitting}
+				onOpenChange={(open) => {
+					if (!open) setDetailItem(null);
+				}}
+				onActionSelect={(item, action) => {
+					onActionSelect?.(item, action);
+				}}
+				onTransactSubmit={handleTransactSubmit}
+			/>
+
+			<TransactionFeedbackDialog
+				result={feedbackResult}
+				item={feedbackItem}
+				open={showFeedbackDialog}
+				onOpenChange={setShowFeedbackDialog}
+			/>
 		</div>
 	);
 }

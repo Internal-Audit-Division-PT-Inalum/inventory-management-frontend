@@ -16,7 +16,6 @@ export function OutboxPage() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Page Header Info */}
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-lg font-bold text-slate-900">
@@ -34,7 +33,6 @@ export function OutboxPage() {
 				</Badge>
 			</div>
 
-			{/* Status Card */}
 			<Card className="border-slate-200/80 bg-white shadow-xs">
 				<CardContent className="flex flex-col items-center p-6 text-center">
 					{pendingCount === 0 ? (
@@ -65,7 +63,6 @@ export function OutboxPage() {
 						</>
 					)}
 
-					{/* Enterprise Architecture Assurance */}
 					<div className="w-full rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-left text-xs space-y-2 mb-4">
 						<div className="flex items-center gap-2 text-slate-700">
 							<ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
