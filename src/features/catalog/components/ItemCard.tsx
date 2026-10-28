@@ -85,7 +85,6 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 				className,
 			)}
 		>
-			{/* Thumbnail Gambar */}
 			<div className="w-20 h-20 rounded-lg bg-slate-100 border border-slate-200/60 overflow-hidden shrink-0 flex items-center justify-center relative">
 				{resolvedImg && !imgFailed ? (
 					<img
@@ -106,10 +105,8 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 				)}
 			</div>
 
-			{/* Konten Utama */}
 			<div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
 				<div>
-					{/* Baris Tipe & SKU */}
 					<div className="flex items-center gap-1.5 flex-wrap">
 						<span
 							className={cn(
@@ -126,13 +123,11 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 						</span>
 					</div>
 
-					{/* Nama Barang */}
 					<h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2 mt-1 group-hover:text-[#004785] transition-colors">
 						{item.name}
 					</h3>
 				</div>
 
-				{/* Informasi Lokasi & Badge Stok */}
 				<div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex items-center gap-1 text-xs text-slate-500">
 						<MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -147,7 +142,6 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 				</div>
 			</div>
 
-			{/* Chevron prompt untuk interaksi mobile */}
 			<div className="hidden xs:flex items-center justify-center pl-1 text-slate-300 group-hover:text-slate-500 transition-colors">
 				<ChevronRight className="w-4 h-4 shrink-0" />
 			</div>

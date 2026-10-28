@@ -64,9 +64,7 @@ export function SyncStatusBar(props: SyncStatusBarProps) {
 			aria-live="polite"
 		>
 			<div className="flex items-center justify-between gap-3">
-				{/* Kolom Kiri: Pill Koneksi & Terakhir Sinkron */}
 				<div className="flex items-center gap-2.5 min-w-0">
-					{/* Status Koneksi Pill */}
 					{isOffline ? (
 						<span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/70 shrink-0">
 							<WifiOff className="w-3.5 h-3.5 text-amber-600" />
@@ -83,7 +81,6 @@ export function SyncStatusBar(props: SyncStatusBarProps) {
 						</span>
 					)}
 
-					{/* Waktu Terakhir Sinkron */}
 					<div className="text-xs text-slate-500 truncate">
 						{lastSyncedAt ? (
 							<span>
@@ -98,7 +95,6 @@ export function SyncStatusBar(props: SyncStatusBarProps) {
 					</div>
 				</div>
 
-				{/* Kolom Kanan: Tombol Segarkan */}
 				{showRefreshButton && (
 					<button
 						type="button"
@@ -130,7 +126,6 @@ export function SyncStatusBar(props: SyncStatusBarProps) {
 				)}
 			</div>
 
-			{/* Banner Peringatan Kesalahan Sinkronisasi (Non-Intrusive) */}
 			{error && (
 				<div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200/60 text-xs text-amber-800">
 					<AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
