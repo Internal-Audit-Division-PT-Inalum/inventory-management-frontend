@@ -56,7 +56,6 @@ export function AppHeader({
 				className,
 			)}
 		>
-			{/* Brand Identity */}
 			<div className="flex items-center gap-2.5 min-w-0">
 				<Link
 					to="/"
@@ -77,11 +76,9 @@ export function AppHeader({
 				</Link>
 			</div>
 
-			{/* Status & Quick Actions */}
 			<div className="flex items-center gap-2 shrink-0">
 				{rightAction}
 
-				{/* Network Status Pill */}
 				{showNetworkStatus && (
 					<div
 						className={cn(
@@ -101,7 +98,6 @@ export function AppHeader({
 					</div>
 				)}
 
-				{/* Employee Namecode Avatar */}
 				{showEmployeeBadge && employee && (
 					<Link
 						to="/profile"

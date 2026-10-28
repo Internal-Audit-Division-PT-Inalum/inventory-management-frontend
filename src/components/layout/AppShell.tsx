@@ -46,10 +46,8 @@ export function AppShell({
 				className,
 			)}
 		>
-			{/* Top Header */}
 			{showHeader && <AppHeader {...headerProps} />}
 
-			{/* Main Scrollable Content */}
 			<main
 				className={cn(
 					"mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-3 sm:px-6 transition-all",
@@ -57,13 +55,11 @@ export function AppShell({
 					contentClassName,
 				)}
 			>
-				{/* Banner PWA Install (Android / iOS) */}
 				{showInstallPrompt && <InstallPromptBanner />}
 
 				{children ?? <Outlet />}
 			</main>
 
-			{/* Bottom Navigation */}
 			{showBottomNav && <BottomNav {...bottomNavProps} />}
 		</div>
 	);

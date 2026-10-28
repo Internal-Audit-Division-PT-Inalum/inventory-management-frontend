@@ -107,7 +107,6 @@ export function BottomNav({ className }: BottomNavProps) {
 							>
 								<Icon className="h-5 w-5 transition-transform" />
 
-								{/* Badge Antrean Outbox Pending */}
 								{item.showBadge && pendingOutboxCount > 0 && (
 									<span
 										role="status"
