@@ -14,6 +14,10 @@ vi.mock("@/lib/api", () => ({
 		get: vi.fn(),
 		post: vi.fn(),
 	},
+	setAuthTokenGetter: vi.fn(),
+	setUnauthorizedHandler: vi.fn(),
+	getActiveAuthToken: vi.fn(() => null),
+	AUTH_EXPIRED_EVENT: "inventory:auth-expired",
 }));
 
 function renderWithQueryClient(ui: React.ReactElement) {
