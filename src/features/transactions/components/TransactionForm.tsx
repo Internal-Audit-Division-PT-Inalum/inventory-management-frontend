@@ -3,6 +3,7 @@ import {
 	AlertTriangle,
 	ArrowDownLeft,
 	ArrowUpRight,
+	Clock,
 	FileText,
 	Loader2,
 	Minus,
@@ -37,13 +38,12 @@ export function TransactionForm({
 	const [showWarningModal, setShowWarningModal] = React.useState(false);
 
 	const isTakeOrBorrow = action === "take" || action === "borrow";
-	const maxStock = isTakeOrBorrow
-		? item.current_stock
-		: MAX_TRANSACTION_QUANTITY;
+	const effectiveStock = item.projected_stock ?? item.current_stock;
+	const maxStock = isTakeOrBorrow ? effectiveStock : MAX_TRANSACTION_QUANTITY;
 
 	const schema = React.useMemo(
-		() => createTransactionSchema(item.current_stock, action),
-		[item.current_stock, action],
+		() => createTransactionSchema(effectiveStock, action),
+		[effectiveStock, action],
 	);
 
 	const {
@@ -289,6 +289,19 @@ export function TransactionForm({
 							</button>
 						)}
 					</div>
+
+					{isTakeOrBorrow && item.has_pending_transactions && (
+						<p className="text-[11px] font-medium text-amber-700 mt-1 flex items-center gap-1.5 bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">
+							<Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-pulse" />
+							<span>
+								Batas maksimal disesuaikan dengan perkiraan sisa stok (
+								<strong>
+									{effectiveStock} {item.unit}
+								</strong>
+								) karena terdapat transaksi dalam antrean.
+							</span>
+						</p>
+					)}
 
 					{errors.quantity && (
 						<p
