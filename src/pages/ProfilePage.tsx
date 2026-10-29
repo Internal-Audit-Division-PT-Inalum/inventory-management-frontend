@@ -5,8 +5,10 @@ import {
 	LogOut,
 	Mail,
 	Shield,
+	Terminal,
 	User,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { LogoutConfirmDialog } from "@/features/auth/components/LogoutConfirmDialog";
@@ -15,17 +17,22 @@ import {
 	selectCurrentEmployee,
 	useAuthStore,
 } from "@/features/auth/store/authStore";
+import { DiagnosticLogDialog } from "@/features/sync";
 
 export function ProfilePage() {
 	const employee = useAuthStore(selectCurrentEmployee);
+	const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
 	const {
 		isChecking,
 		isLoggingOut,
+		isSyncingBeforeLogout,
 		showWarningDialog,
-		pendingCount,
+		myPendingCount,
+		otherPendingCount,
 		requestLogout,
 		cancelLogout,
 		confirmLogout,
+		syncBeforeLogout,
 	} = useLogout();
 
 	return (
@@ -108,6 +115,28 @@ export function ProfilePage() {
 
 				<button
 					type="button"
+					onClick={() => setIsDiagnosticOpen(true)}
+					className="flex w-full items-center justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:bg-slate-50 active:scale-98"
+					data-testid="profile-open-diagnostics-button"
+				>
+					<div className="flex items-center gap-3">
+						<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-emerald-400">
+							<Terminal className="h-5 w-5" />
+						</div>
+						<div className="text-left">
+							<span className="text-xs font-bold text-slate-800 block">
+								Log Diagnostik Sistem
+							</span>
+							<span className="text-[11px] text-slate-500">
+								Inspeksi riwayat sinkronisasi offline & audit IT
+							</span>
+						</div>
+					</div>
+					<span className="text-xs font-semibold text-[#004785]">Lihat</span>
+				</button>
+
+				<button
+					type="button"
 					onClick={() => requestLogout()}
 					disabled={isChecking || isLoggingOut}
 					aria-label="Keluar Akun"
@@ -144,12 +173,21 @@ export function ProfilePage() {
 				</CardContent>
 			</Card>
 
+			<DiagnosticLogDialog
+				open={isDiagnosticOpen}
+				onOpenChange={setIsDiagnosticOpen}
+			/>
+
 			<LogoutConfirmDialog
 				open={showWarningDialog}
 				onOpenChange={cancelLogout}
-				pendingCount={pendingCount}
+				employee={employee}
+				myPendingCount={myPendingCount}
+				otherPendingCount={otherPendingCount}
 				onConfirm={confirmLogout}
+				onSyncBeforeLogout={syncBeforeLogout}
 				isPending={isLoggingOut}
+				isSyncing={isSyncingBeforeLogout}
 			/>
 		</div>
 	);
