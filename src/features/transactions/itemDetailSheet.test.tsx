@@ -282,4 +282,31 @@ describe("ItemDetailSheet Component (Task P3.1)", () => {
 
 		expect(writeTextMock).toHaveBeenCalledWith("ATK-PPR-A4");
 	});
+
+	// Task P5.8 Tests: Projected Stock UI
+	it("renders projected stock alert banner and estimated indicators when item has pending transactions", () => {
+		const itemWithPending: Item = {
+			...mockConsumableItem,
+			current_stock: 40,
+			projected_stock: 40,
+			has_pending_transactions: true,
+			pending_transactions_count: 1,
+		};
+
+		render(
+			<ItemDetailSheet
+				item={itemWithPending}
+				open={true}
+				onOpenChange={vi.fn()}
+			/>,
+		);
+
+		// Harus memunculkan banner alert perkiraan stok
+		const alertBanner = screen.getByTestId("projected-stock-alert");
+		expect(alertBanner).toBeDefined();
+		expect(screen.getByText("Stok Perkiraan Lokal")).toBeDefined();
+		expect(screen.getByText(/1 transaksi antrean/i)).toBeDefined();
+		expect(screen.getByText("Stok Perkiraan")).toBeDefined();
+		expect(screen.getByText(/Perkiraan: 40 rim/i)).toBeDefined();
+	});
 });
