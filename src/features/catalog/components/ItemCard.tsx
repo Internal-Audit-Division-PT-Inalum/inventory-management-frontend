@@ -1,4 +1,4 @@
-import { ChevronRight, MapPin, Package, Wrench } from "lucide-react";
+import { ChevronRight, Clock, MapPin, Package, Wrench } from "lucide-react";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, resolveMediaUrl } from "@/lib/utils";
@@ -29,41 +29,105 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 
 	// Logika badge stok adaptif berdasarkan tipe barang dan ketersediaan
 	const renderStockBadge = () => {
+		const isEstimated = Boolean(item.has_pending_transactions);
+		const displayStock =
+			item.projected_stock !== undefined
+				? item.projected_stock
+				: item.current_stock;
+
 		if (item.type === "consumable") {
-			if (item.current_stock === 0) {
+			if (displayStock === 0) {
 				return (
-					<Badge variant="critical" className="font-medium text-xs">
-						Habis (0 {item.unit})
+					<Badge
+						variant="critical"
+						className="font-medium text-xs flex items-center gap-1"
+					>
+						{isEstimated && (
+							<Clock className="w-3 h-3 text-red-700 animate-pulse shrink-0" />
+						)}
+						<span>
+							{isEstimated ? "Perkiraan: Habis (0 " : "Habis (0 "}
+							{item.unit})
+						</span>
 					</Badge>
 				);
 			}
-			if (item.current_stock <= item.minimum_stock) {
+			if (displayStock <= item.minimum_stock) {
 				return (
-					<Badge variant="warning" className="font-medium text-xs">
-						Sisa {item.current_stock} {item.unit} (Menipis)
+					<Badge
+						variant="warning"
+						className="font-medium text-xs flex items-center gap-1"
+					>
+						{isEstimated && (
+							<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+						)}
+						<span>
+							{isEstimated
+								? `Perkiraan: Sisa ${displayStock} ${item.unit}`
+								: `Sisa ${displayStock} ${item.unit} (Menipis)`}
+						</span>
 					</Badge>
 				);
 			}
 			return (
-				<Badge variant="ok" className="font-medium text-xs">
-					Tersedia: {item.current_stock} {item.unit}
+				<Badge
+					variant={isEstimated ? "warning" : "ok"}
+					className={cn(
+						"font-medium text-xs flex items-center gap-1",
+						isEstimated &&
+							"border-amber-300 bg-amber-50 text-amber-900 font-semibold",
+					)}
+				>
+					{isEstimated && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						{isEstimated
+							? `Perkiraan: ${displayStock} ${item.unit}`
+							: `Tersedia: ${displayStock} ${item.unit}`}
+					</span>
 				</Badge>
 			);
 		}
 
 		// Logika tipe Aset (Keputusan D8: Tersedia X · Dipinjam Y)
-		const borrowed = item.borrowed_quantity || 0;
-		if (item.current_stock > 0) {
+		const borrowed =
+			item.projected_borrowed !== undefined
+				? item.projected_borrowed
+				: item.borrowed_quantity || 0;
+
+		if (displayStock > 0) {
 			return (
-				<Badge variant="ok" className="font-medium text-xs">
-					Tersedia {item.current_stock} · Dipinjam {borrowed} {item.unit}
+				<Badge
+					variant={isEstimated ? "warning" : "ok"}
+					className={cn(
+						"font-medium text-xs flex items-center gap-1",
+						isEstimated &&
+							"border-amber-300 bg-amber-50 text-amber-900 font-semibold",
+					)}
+				>
+					{isEstimated && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						{isEstimated ? "Perkiraan: " : "Tersedia "}
+						{displayStock} · Dipinjam {borrowed} {item.unit}
+					</span>
 				</Badge>
 			);
 		}
 		if (borrowed > 0) {
 			return (
-				<Badge variant="warning" className="font-medium text-xs">
-					Semua Dipinjam ({borrowed} {item.unit})
+				<Badge
+					variant="warning"
+					className="font-medium text-xs flex items-center gap-1"
+				>
+					{isEstimated && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						Semua Dipinjam ({borrowed} {item.unit})
+					</span>
 				</Badge>
 			);
 		}
@@ -121,6 +185,16 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 						<span className="text-[11px] font-mono text-slate-400 font-medium tracking-wide">
 							{item.sku}
 						</span>
+						{item.has_pending_transactions && (
+							<span
+								data-testid="item-pending-badge"
+								className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1 shrink-0"
+								title={`${item.pending_transactions_count ?? 1} transaksi antrean outbox`}
+							>
+								<Clock className="w-2.5 h-2.5 text-amber-600 animate-pulse" />
+								<span>{item.pending_transactions_count ?? 1} Antrean</span>
+							</span>
+						)}
 					</div>
 
 					<h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2 mt-1 group-hover:text-[#004785] transition-colors">
