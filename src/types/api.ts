@@ -41,6 +41,14 @@ export interface Item {
 	description?: string | null;
 	is_active?: boolean;
 	location?: Location;
+	/** Nilai stok terproyeksi lokal yang memperhitungkan antrean outbox (Task P5.8) */
+	projected_stock?: number;
+	/** Nilai aset terpinjam terproyeksi lokal yang memperhitungkan antrean outbox (Task P5.8) */
+	projected_borrowed?: number;
+	/** Bernilai true jika item memiliki transaksi outbox yang sedang pending/syncing (Task P5.8) */
+	has_pending_transactions?: boolean;
+	/** Jumlah transaksi outbox lokal yang sedang menunggu sinkronisasi (Task P5.8) */
+	pending_transactions_count?: number;
 	created_at?: string;
 	updated_at: string;
 }
