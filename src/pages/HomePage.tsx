@@ -1,6 +1,6 @@
-import { KeyRound, LogOut, ShieldCheck, User } from "lucide-react";
+import { KeyRound, LogOut, User } from "lucide-react";
+import * as React from "react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { LogoutConfirmDialog } from "@/features/auth/components/LogoutConfirmDialog";
 import { useLogout } from "@/features/auth/hooks/useLogout";
@@ -8,7 +8,23 @@ import {
 	selectCurrentEmployee,
 	useAuthStore,
 } from "@/features/auth/store/authStore";
-import { CatalogView } from "@/features/catalog/components/CatalogView";
+import {
+	type CatalogStockFilter,
+	CatalogView,
+} from "@/features/catalog/components/CatalogView";
+import { useCatalogSync } from "@/features/catalog/hooks/useCatalogSync";
+import {
+	CriticalStockAlertWidget,
+	InventoryKPICards,
+	type KPICardFilterType,
+	LoanSummaryWidget,
+	RecentActivityFeed,
+	ReconciliationBadge,
+	useAuditorLoansSummary,
+	useLowStockReconciliation,
+	useRecentActivities,
+	useStockMetrics,
+} from "@/features/monitoring";
 
 export function HomePage() {
 	const employee = useAuthStore(selectCurrentEmployee);
@@ -24,6 +40,66 @@ export function HomePage() {
 		confirmLogout,
 		syncBeforeLogout,
 	} = useLogout();
+
+	// Hook sinkronisasi katalog untuk aksi refresh rekonsiliasi
+	const { syncNow: syncCatalogManual, isSyncing: isCatalogSyncing } =
+		useCatalogSync({ autoSync: false });
+
+	// Hook metrik kesehatan stok inventaris lokal (Task P6.1)
+	const {
+		metrics,
+		urgentItems,
+		isLoading: isMetricsLoading,
+	} = useStockMetrics();
+
+	// Hook rekonsiliasi stok rendah lokal vs endpoint backend /reports/low-stock (Task P6.3)
+	const { reconciliation, isChecking: isReconciling } =
+		useLowStockReconciliation({
+			localUrgentItems: urgentItems,
+		});
+
+	// Hook ringkasan pinjaman & aktivitas terakhir (Task P6.2)
+	const { summary: loanSummary, isLoading: isLoansLoading } =
+		useAuditorLoansSummary();
+	const { activities: recentActivities, isLoading: isActivitiesLoading } =
+		useRecentActivities({ limit: 5 });
+
+	const [catalogStockFilter, setCatalogStockFilter] =
+		React.useState<CatalogStockFilter>("all");
+
+	// Interaksi filter cepat dari kartu KPI ke tampilan katalog
+	const handleKPICardClick = (filterType: KPICardFilterType) => {
+		switch (filterType) {
+			case "all":
+				setCatalogStockFilter("all");
+				break;
+			case "healthy":
+				setCatalogStockFilter("available");
+				break;
+			case "low":
+			case "critical_or_empty":
+				setCatalogStockFilter("low_or_empty");
+				break;
+		}
+
+		if (typeof document !== "undefined") {
+			const el = document.getElementById("catalog-section");
+			if (el && typeof el.scrollIntoView === "function") {
+				el.scrollIntoView({ behavior: "smooth" });
+			}
+		}
+	};
+
+	// Aksi filter cepat dari widget peringatan stok kritis
+	const handleViewAllUrgentStock = () => {
+		setCatalogStockFilter("low_or_empty");
+		if (typeof document !== "undefined") {
+			const el = document.getElementById("catalog-section");
+			if (el && typeof el.scrollIntoView === "function") {
+				el.scrollIntoView({ behavior: "smooth" });
+			}
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -70,27 +146,43 @@ export function HomePage() {
 				</Card>
 			)}
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-[#004785] shadow-xs">
-						<ShieldCheck className="h-5 w-5" />
-					</div>
-					<div className="min-w-0 flex-1">
-						<h2 className="text-xs font-bold text-slate-800 leading-tight">
-							PWA Mobile Inventory Foundation
-						</h2>
-						<p className="text-[11px] text-slate-500 mt-0.5">
-							Sistem Autentikasi Pegawai & Sesi Offline PWA Aktif.
-						</p>
-					</div>
-					<Badge variant="default" className="text-[10px] shrink-0">
-						Inisialisasi Fondasi
-					</Badge>
-				</div>
+			{/* Indikator Status Rekonsiliasi vs Laporan Server /reports/low-stock (Task P6.3) */}
+			<ReconciliationBadge
+				reconciliation={reconciliation}
+				isChecking={isReconciling || isCatalogSyncing}
+				onRefreshCatalog={
+					reconciliation.canRefreshCatalog
+						? () => syncCatalogManual()
+						: undefined
+				}
+			/>
+
+			{/* Kartu Ringkasan KPI Inventaris (Task P6.1) */}
+			<InventoryKPICards
+				metrics={metrics}
+				isLoading={isMetricsLoading}
+				onCardClick={handleKPICardClick}
+			/>
+
+			{/* Widget Peringatan Stok Kritis & Menipis (Task P6.1) */}
+			<CriticalStockAlertWidget
+				urgentItems={urgentItems}
+				totalAttentionCount={metrics.attentionNeededCount}
+				isLoading={isMetricsLoading}
+				onViewAllClick={handleViewAllUrgentStock}
+			/>
+
+			{/* Widget Ringkasan Pinjaman & Aktivitas Terakhir (Task P6.2) */}
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				<LoanSummaryWidget summary={loanSummary} isLoading={isLoansLoading} />
+				<RecentActivityFeed
+					activities={recentActivities}
+					isLoading={isActivitiesLoading}
+				/>
 			</div>
 
-			<section aria-label="Katalog Inventaris">
-				<CatalogView />
+			<section id="catalog-section" aria-label="Katalog Inventaris">
+				<CatalogView initialStockFilter={catalogStockFilter} />
 			</section>
 
 			<LogoutConfirmDialog
