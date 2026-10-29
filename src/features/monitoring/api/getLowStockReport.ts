@@ -11,4 +11,3 @@ export async function getLowStockReportApi(): Promise<Item[]> {
 	);
 	return response.data.data;
 }
-

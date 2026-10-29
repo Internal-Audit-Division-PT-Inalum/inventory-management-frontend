@@ -130,4 +130,3 @@ describe("useLowStockReconciliation Hook (Task P6.3)", () => {
 		expect(result.current.reconciliation.localOnlyItemIds).toEqual(["item-2"]);
 	});
 });
-
