@@ -341,4 +341,67 @@ export const transactionHandlers = [
 			);
 		},
 	),
+
+	// Endpoint Sinkronisasi Cache Katalog Barang (GET /inventory/catalog)
+	http.get("*/inventory/catalog", ({ request }) => {
+		const ifNoneMatch = request.headers.get("if-none-match");
+		const currentEtag = '"mock-etag-catalog-1"';
+
+		if (
+			ifNoneMatch &&
+			ifNoneMatch.replace(/"/g, "") === "mock-etag-catalog-1"
+		) {
+			return new HttpResponse(null, {
+				status: 304,
+				headers: {
+					ETag: currentEtag,
+					Date: new Date().toUTCString(),
+				},
+			});
+		}
+
+		const itemsList = Object.values(mockItemStore).map((item) => ({
+			id: item.id,
+			sku: item.sku,
+			name: item.name,
+			type: item.type,
+			unit: item.unit,
+			location_id: "loc-01",
+			current_stock: item.current_stock,
+			borrowed_quantity: item.borrowed_quantity,
+			minimum_stock: item.minimum_stock,
+			image_url: null,
+			updated_at: new Date().toISOString(),
+		}));
+
+		return HttpResponse.json(
+			{
+				success: true,
+				data: itemsList,
+			},
+			{
+				status: 200,
+				headers: {
+					ETag: currentEtag,
+					Date: new Date().toUTCString(),
+				},
+			},
+		);
+	}),
+
+	// Endpoint Daftar Lokasi (GET /inventory/locations)
+	http.get("*/inventory/locations", () => {
+		return HttpResponse.json({
+			success: true,
+			data: [
+				{
+					id: "loc-01",
+					code: "WH-01",
+					name: "Gudang Utama Kuala Tanjung",
+					description: "Gudang material & aset",
+					is_active: true,
+				},
+			],
+		});
+	}),
 ];
