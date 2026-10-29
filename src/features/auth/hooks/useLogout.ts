@@ -1,57 +1,90 @@
 import { useQueryClient } from "@tanstack/react-query";
-import * as React from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { runSyncEngine } from "@/features/sync/lib/syncEngine";
 import { db } from "@/lib/db";
+import type { Employee } from "@/types/api";
 import { postLogout } from "../api/postLogout";
 import { useAuthStore } from "../store/authStore";
 
 export interface UseLogoutReturn {
 	isChecking: boolean;
 	isLoggingOut: boolean;
+	isSyncingBeforeLogout: boolean;
 	showWarningDialog: boolean;
+	/** Jumlah antrean tertunda milik akun yang sedang aktif */
 	pendingCount: number;
+	myPendingCount: number;
+	/** Jumlah antrean tertunda milik akun lain di perangkat ini */
+	otherPendingCount: number;
+	totalPendingCount: number;
+	employee: Employee | null;
 	requestLogout: () => Promise<void>;
 	cancelLogout: () => void;
 	confirmLogout: () => Promise<void>;
+	syncBeforeLogout: () => Promise<boolean>;
 }
 
 /**
- * Hook orkestrasi logout aman dengan pengecekan antrean transaksi offline:
- * 1. Mengecek IndexedDB (db.outbox) untuk mendeteksi transaksi pending/syncing.
- * 2. Jika ada antrean belum tersinkronisasi, memunculkan modal peringatan.
- * 3. Jika pengguna mengonfirmasi (atau antrean kosong), sesi dibersihkan tanpa menghapus antrean di IndexedDB.
+ * Hook orkestrasi logout aman dengan penegakan isolasi antrean per employeeId (Task P5.11):
+ * 1. Mengecek IndexedDB (db.outbox) secara terisolasi per akun saat ini dan akun lain di perangkat.
+ * 2. Jika ada transaksi milik akun saat ini yang belum tersinkron, memunculkan modal peringatan final.
+ * 3. Menyediakan opsi "Sinkronkan Dulu" langsung dari modal logout jika online.
+ * 4. Saat logout dikonfirmasi, sesi dibersihkan tanpa pernah menghapus antrean outbox di IndexedDB (Zero Data Loss).
  */
 export function useLogout(): UseLogoutReturn {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const logout = useAuthStore((state) => state.logout);
+	const employee = useAuthStore((state) => state.employee);
+	const employeeId = employee?.id;
 
-	const [isChecking, setIsChecking] = React.useState(false);
-	const [isLoggingOut, setIsLoggingOut] = React.useState(false);
-	const [showWarningDialog, setShowWarningDialog] = React.useState(false);
-	const [pendingCount, setPendingCount] = React.useState(0);
+	const [isChecking, setIsChecking] = useState(false);
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
+	const [isSyncingBeforeLogout, setIsSyncingBeforeLogout] = useState(false);
+	const [showWarningDialog, setShowWarningDialog] = useState(false);
+
+	const [pendingCount, setPendingCount] = useState(0);
+	const [myPendingCount, setMyPendingCount] = useState(0);
+	const [otherPendingCount, setOtherPendingCount] = useState(0);
+	const [totalPendingCount, setTotalPendingCount] = useState(0);
 
 	/**
-	 * Menghitung jumlah transaksi yang masih pending/syncing di outbox IndexedDB.
+	 * Menghitung rincian antrean offline terisolasi untuk akun saat ini dan akun lain.
 	 */
-	const getPendingOutboxCount = React.useCallback(async (): Promise<number> => {
+	const calculatePendingCounts = useCallback(async () => {
 		try {
-			return await db.outbox
-				.filter(
-					(item) => item.status === "pending" || item.status === "syncing",
-				)
-				.count();
+			const total = await db.getPendingOutboxCount({ includeFailed: true });
+
+			let mine = 0;
+			if (employeeId) {
+				mine = await db.getPendingOutboxCount({
+					employeeId,
+					includeFailed: true,
+				});
+			} else {
+				mine = total;
+			}
+
+			const others = Math.max(0, total - mine);
+
+			setMyPendingCount(mine);
+			setOtherPendingCount(others);
+			setTotalPendingCount(total);
+			setPendingCount(mine > 0 ? mine : total);
+
+			return { mine, others, total };
 		} catch {
-			return 0;
+			return { mine: 0, others: 0, total: 0 };
 		}
-	}, []);
+	}, [employeeId]);
 
 	/**
 	 * Melakukan proses pembersihan sesi lokal dan revocasi token server.
-	 * PENTING: Antrean di IndexedDB db.outbox TIDAK PERNAH DIHAPUS.
+	 * PENTING: Antrean di IndexedDB db.outbox TIDAK PERNAH DIHAPUS (Zero Data Loss).
 	 */
-	const performLogout = React.useCallback(async () => {
+	const performLogout = useCallback(async () => {
 		setIsLoggingOut(true);
 		try {
 			// 1. Panggil API logout (server token revocation)
@@ -76,12 +109,11 @@ export function useLogout(): UseLogoutReturn {
 	/**
 	 * Memulai alur logout: cek antrean offline terlebih dahulu.
 	 */
-	const requestLogout = React.useCallback(async () => {
+	const requestLogout = useCallback(async () => {
 		setIsChecking(true);
 		try {
-			const count = await getPendingOutboxCount();
-			if (count > 0) {
-				setPendingCount(count);
+			const { total } = await calculatePendingCounts();
+			if (total > 0) {
 				setShowWarningDialog(true);
 			} else {
 				await performLogout();
@@ -89,13 +121,45 @@ export function useLogout(): UseLogoutReturn {
 		} finally {
 			setIsChecking(false);
 		}
-	}, [getPendingOutboxCount, performLogout]);
+	}, [calculatePendingCounts, performLogout]);
 
-	const cancelLogout = React.useCallback(() => {
+	/**
+	 * Fitur khusus: Sinkronkan antrean akun saat ini sebelum logout selesai.
+	 */
+	const syncBeforeLogout = useCallback(async (): Promise<boolean> => {
+		setIsSyncingBeforeLogout(true);
+		try {
+			await runSyncEngine({
+				employeeId,
+				includeFailed: true,
+			});
+
+			// Perbarui kembali status antrean
+			const { mine } = await calculatePendingCounts();
+			if (mine === 0) {
+				toast.success("Seluruh transaksi berhasil disinkronkan ke server.");
+				// Otomatis lanjutkan logout jika sudah bersih
+				await performLogout();
+				return true;
+			}
+			return false;
+		} catch (err) {
+			toast.error(
+				err instanceof Error
+					? err.message
+					: "Gagal menyinkronkan antrean sebelum keluar.",
+			);
+			return false;
+		} finally {
+			setIsSyncingBeforeLogout(false);
+		}
+	}, [employeeId, calculatePendingCounts, performLogout]);
+
+	const cancelLogout = useCallback(() => {
 		setShowWarningDialog(false);
 	}, []);
 
-	const confirmLogout = React.useCallback(async () => {
+	const confirmLogout = useCallback(async () => {
 		setShowWarningDialog(false);
 		await performLogout();
 	}, [performLogout]);
@@ -103,10 +167,21 @@ export function useLogout(): UseLogoutReturn {
 	return {
 		isChecking,
 		isLoggingOut,
+		isSyncingBeforeLogout,
 		showWarningDialog,
-		pendingCount,
+		pendingCount:
+			pendingCount > 0
+				? pendingCount
+				: myPendingCount > 0
+					? myPendingCount
+					: totalPendingCount,
+		myPendingCount,
+		otherPendingCount,
+		totalPendingCount,
+		employee,
 		requestLogout,
 		cancelLogout,
 		confirmLogout,
+		syncBeforeLogout,
 	};
 }
