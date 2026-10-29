@@ -1,3 +1,4 @@
+import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Item, Location } from "@/types/api";
 import { db } from "./db";
@@ -76,6 +77,7 @@ describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
 		await db.locations.clear();
 		await db.meta.clear();
 		await db.outbox.clear();
+		await db.diagnostic_logs.clear();
 	});
 
 	afterEach(async () => {
@@ -83,6 +85,7 @@ describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
 		await db.locations.clear();
 		await db.meta.clear();
 		await db.outbox.clear();
+		await db.diagnostic_logs.clear();
 	});
 
 	it("initializes stores and schema tables correctly", () => {
@@ -90,6 +93,7 @@ describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
 		expect(db.locations).toBeDefined();
 		expect(db.meta).toBeDefined();
 		expect(db.outbox).toBeDefined();
+		expect(db.diagnostic_logs).toBeDefined();
 		expect(db.name).toBe("inventory_iia_pwa");
 	});
 
@@ -323,5 +327,228 @@ describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
 		const pendingCount = await db.getPendingOutboxCount();
 		// tx-1 (pending) and tx-2 (syncing) = 2
 		expect(pendingCount).toBe(2);
+	});
+
+	describe("Task P5.1: Dexie Versioned Outbox Schema & Ring-Buffer Diagnostics", () => {
+		it("supports querying outbox using compound indices [employeeId+status], [itemId+status], and [status+createdAt]", async () => {
+			await db.outbox.bulkAdd([
+				{
+					clientUuid: "p5-tx-1",
+					employeeId: "emp-alice",
+					operation: "take",
+					itemId: "item-1",
+					quantity: 2,
+					occurredAt: "2026-10-28T09:00:00Z",
+					status: "pending",
+					attempts: 0,
+					createdAt: "2026-10-28T09:00:00Z",
+				},
+				{
+					clientUuid: "p5-tx-2",
+					employeeId: "emp-alice",
+					operation: "borrow",
+					itemId: "item-2",
+					quantity: 1,
+					occurredAt: "2026-10-28T09:05:00Z",
+					status: "failed",
+					attempts: 2,
+					nextAttemptAt: "2026-10-28T09:10:00Z",
+					createdAt: "2026-10-28T09:05:00Z",
+				},
+				{
+					clientUuid: "p5-tx-3",
+					employeeId: "emp-bob",
+					operation: "add",
+					itemId: "item-1",
+					quantity: 10,
+					occurredAt: "2026-10-28T09:02:00Z",
+					status: "pending",
+					attempts: 0,
+					createdAt: "2026-10-28T09:02:00Z",
+				},
+			]);
+
+			// 1. Query by employeeId isolation
+			const alicePending = await db.getPendingOutboxItems({
+				employeeId: "emp-alice",
+				includeFailed: true,
+			});
+			expect(alicePending.length).toBe(2);
+			expect(alicePending.map((t) => t.clientUuid)).toEqual([
+				"p5-tx-1",
+				"p5-tx-2",
+			]);
+
+			const bobCount = await db.getPendingOutboxCount({
+				employeeId: "emp-bob",
+			});
+			expect(bobCount).toBe(1);
+
+			// 2. Query by itemId and status
+			const item1Pending = await db.getOutboxItemsByItem("item-1", "pending");
+			expect(item1Pending.length).toBe(2);
+			expect(item1Pending.map((t) => t.clientUuid)).toEqual([
+				"p5-tx-1",
+				"p5-tx-3",
+			]);
+		});
+
+		it("recovers abandoned 'syncing' items back to 'pending' state", async () => {
+			await db.outbox.bulkAdd([
+				{
+					clientUuid: "crash-tx-1",
+					employeeId: "emp-1",
+					operation: "take",
+					itemId: "item-1",
+					quantity: 1,
+					occurredAt: "2026-10-28T09:00:00Z",
+					status: "syncing", // abandoned in-flight due to crash
+					attempts: 1,
+					createdAt: "2026-10-28T09:00:00Z",
+				},
+				{
+					clientUuid: "stable-tx-2",
+					employeeId: "emp-1",
+					operation: "add",
+					itemId: "item-2",
+					quantity: 2,
+					occurredAt: "2026-10-28T09:01:00Z",
+					status: "pending",
+					attempts: 0,
+					createdAt: "2026-10-28T09:01:00Z",
+				},
+			]);
+
+			const resetCount = await db.resetAbandonedSyncingItems();
+			expect(resetCount).toBe(1);
+
+			const recovered = await db.getOutboxItemByUuid("crash-tx-1");
+			expect(recovered?.status).toBe("pending");
+		});
+
+		it("records diagnostic logs with ring buffer cap enforcement and text export", async () => {
+			// Add 4 logs with maxEntries cap of 3
+			await db.addDiagnosticLog(
+				{
+					timestamp: "2026-10-28T09:00:00Z",
+					level: "info",
+					category: "SYNC",
+					message: "Sync engine initialized",
+				},
+				3,
+			);
+			await db.addDiagnosticLog(
+				{
+					timestamp: "2026-10-28T09:01:00Z",
+					level: "warn",
+					category: "NETWORK",
+					message: "Network jitter detected",
+				},
+				3,
+			);
+			await db.addDiagnosticLog(
+				{
+					timestamp: "2026-10-28T09:02:00Z",
+					level: "error",
+					category: "TRANSACTION",
+					message: "Payload rejected by server",
+					details: { code: "INSUFFICIENT_STOCK" },
+				},
+				3,
+			);
+			await db.addDiagnosticLog(
+				{
+					timestamp: "2026-10-28T09:03:00Z",
+					level: "info",
+					category: "RETRY",
+					message: "Retrying pending queue",
+				},
+				3,
+			);
+
+			// Count must be capped at 3 (oldest 'Sync engine initialized' evicted)
+			const logsCount = await db.diagnostic_logs.count();
+			expect(logsCount).toBe(3);
+
+			const logs = await db.getDiagnosticLogs();
+			expect(logs.length).toBe(3);
+			expect(logs[0].message).toBe("Retrying pending queue"); // latest first
+
+			const textExport = await db.exportDiagnosticLogsAsText();
+			expect(textExport).toContain("[INFO] [RETRY] Retrying pending queue");
+			expect(textExport).toContain("INSUFFICIENT_STOCK");
+			expect(textExport).not.toContain("Sync engine initialized");
+
+			// Clear logs
+			await db.clearDiagnosticLogs();
+			expect(await db.diagnostic_logs.count()).toBe(0);
+		});
+
+		it("executes version 3 upgrade handler to backfill default attributes on legacy outbox records", async () => {
+			const MIGRATION_TEST_DB = "test_migration_p5_db";
+			await Dexie.delete(MIGRATION_TEST_DB);
+
+			// Step 1: Inisialisasi DB versi 1 dengan data lama tanpa kolom P5
+			const v1Db = new Dexie(MIGRATION_TEST_DB);
+			v1Db.version(1).stores({
+				outbox: "clientUuid, employeeId, operation, itemId, status, createdAt",
+			});
+			await v1Db.open();
+
+			await v1Db.table("outbox").add({
+				clientUuid: "legacy-tx-1",
+				employeeId: "emp-legacy",
+				operation: "take",
+				itemId: "item-1",
+				quantity: 3,
+				occurredAt: "2026-10-25T10:00:00Z",
+				status: "pending",
+				createdAt: "2026-10-25T10:00:00Z",
+			});
+			v1Db.close();
+
+			// Step 2: Buka kembali DB dengan migrasi versi 3
+			const v3Db = new Dexie(MIGRATION_TEST_DB);
+			v3Db.version(1).stores({
+				outbox: "clientUuid, employeeId, operation, itemId, status, createdAt",
+			});
+			v3Db.version(2).stores({
+				items: "id",
+			});
+			v3Db
+				.version(3)
+				.stores({
+					outbox:
+						"clientUuid, employeeId, operation, itemId, status, createdAt, nextAttemptAt, [status+createdAt], [itemId+status], [employeeId+status]",
+					diagnostic_logs: "++id, timestamp, level, category, createdAt",
+				})
+				.upgrade(async (tx) => {
+					await tx
+						.table("outbox")
+						.toCollection()
+						.modify((item: Record<string, unknown>) => {
+							if (typeof item.attempts !== "number") {
+								item.attempts = 0;
+							}
+							if (item.nextAttemptAt === undefined) {
+								item.nextAttemptAt = null;
+							}
+							if (item.lastError === undefined) {
+								item.lastError = null;
+							}
+						});
+				});
+
+			await v3Db.open();
+			const upgradedRecord = await v3Db.table("outbox").get("legacy-tx-1");
+
+			expect(upgradedRecord).toBeDefined();
+			expect(upgradedRecord.attempts).toBe(0);
+			expect(upgradedRecord.nextAttemptAt).toBeNull();
+			expect(upgradedRecord.lastError).toBeNull();
+
+			v3Db.close();
+			await Dexie.delete(MIGRATION_TEST_DB);
+		});
 	});
 });
