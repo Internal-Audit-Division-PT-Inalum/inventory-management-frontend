@@ -4,6 +4,7 @@ import {
 	ArrowLeft,
 	ArrowUpRight,
 	Check,
+	Clock,
 	Copy,
 	History,
 	Info,
@@ -24,6 +25,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { cn, resolveMediaUrl } from "@/lib/utils";
+import { useProjectedStock } from "../hooks/useProjectedStock";
 import type { ItemDetailSheetProps, TransactionAction } from "../types";
 import { ItemLedgerHistory } from "./ItemLedgerHistory";
 import { TransactionForm } from "./TransactionForm";
@@ -66,14 +68,25 @@ export function ItemDetailSheet({
 		}
 	}, [open]);
 
+	const projected = useProjectedStock(item);
+
 	if (!item) return null;
+
+	const hasPending = Boolean(
+		projected?.hasPendingTransactions || item.has_pending_transactions,
+	);
+	const displayStock = projected
+		? projected.projectedStock
+		: (item.projected_stock ?? item.current_stock);
+	const displayBorrowed = projected
+		? projected.projectedBorrowed
+		: (item.projected_borrowed ?? item.borrowed_quantity ?? 0);
 
 	const isConsumable = item.type === "consumable";
 	const isAsset = item.type === "asset";
 	const rawImageUrl = item.image_url || item.image_thumb_url;
 	const resolvedImg = resolveMediaUrl(rawImageUrl);
-	const borrowedCount = item.borrowed_quantity || 0;
-	const isOutOfStock = item.current_stock <= 0;
+	const isOutOfStock = displayStock <= 0;
 
 	const handleCopySku = async () => {
 		try {
@@ -94,42 +107,96 @@ export function ItemDetailSheet({
 		onActionSelect?.(item, action);
 	};
 
-	// Logika badge status stok (selaras dengan Keputusan D8 & ItemCard)
+	// Logika badge status stok (selaras dengan Keputusan D8, ItemCard, dan Proyeksi Stok Task P5.8)
 	const renderStockBadge = () => {
 		if (isConsumable) {
-			if (item.current_stock === 0) {
+			if (displayStock === 0) {
 				return (
-					<Badge variant="critical" className="font-semibold text-xs">
-						Habis (0 {item.unit})
+					<Badge
+						variant="critical"
+						className="font-semibold text-xs flex items-center gap-1"
+					>
+						{hasPending && (
+							<Clock className="w-3 h-3 text-red-700 animate-pulse shrink-0" />
+						)}
+						<span>
+							{hasPending ? "Perkiraan: Habis (0 " : "Habis (0 "}
+							{item.unit})
+						</span>
 					</Badge>
 				);
 			}
-			if (item.current_stock <= item.minimum_stock) {
+			if (displayStock <= item.minimum_stock) {
 				return (
-					<Badge variant="warning" className="font-semibold text-xs">
-						Sisa {item.current_stock} {item.unit} (Menipis)
+					<Badge
+						variant="warning"
+						className="font-semibold text-xs flex items-center gap-1"
+					>
+						{hasPending && (
+							<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+						)}
+						<span>
+							{hasPending
+								? `Perkiraan: Sisa ${displayStock} ${item.unit}`
+								: `Sisa ${displayStock} ${item.unit} (Menipis)`}
+						</span>
 					</Badge>
 				);
 			}
 			return (
-				<Badge variant="ok" className="font-semibold text-xs">
-					Tersedia: {item.current_stock} {item.unit}
+				<Badge
+					variant={hasPending ? "warning" : "ok"}
+					className={cn(
+						"font-semibold text-xs flex items-center gap-1",
+						hasPending &&
+							"border-amber-300 bg-amber-50 text-amber-900 font-bold",
+					)}
+				>
+					{hasPending && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						{hasPending
+							? `Perkiraan: ${displayStock} ${item.unit}`
+							: `Tersedia: ${displayStock} ${item.unit}`}
+					</span>
 				</Badge>
 			);
 		}
 
 		// Aset (Keputusan D8: Tersedia X · Dipinjam Y tanpa nama peminjam)
-		if (item.current_stock > 0) {
+		if (displayStock > 0) {
 			return (
-				<Badge variant="ok" className="font-semibold text-xs">
-					Tersedia {item.current_stock} · Dipinjam {borrowedCount} {item.unit}
+				<Badge
+					variant={hasPending ? "warning" : "ok"}
+					className={cn(
+						"font-semibold text-xs flex items-center gap-1",
+						hasPending &&
+							"border-amber-300 bg-amber-50 text-amber-900 font-bold",
+					)}
+				>
+					{hasPending && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						{hasPending ? "Perkiraan: " : "Tersedia "}
+						{displayStock} · Dipinjam {displayBorrowed} {item.unit}
+					</span>
 				</Badge>
 			);
 		}
-		if (borrowedCount > 0) {
+		if (displayBorrowed > 0) {
 			return (
-				<Badge variant="warning" className="font-semibold text-xs">
-					Semua Dipinjam ({borrowedCount} {item.unit})
+				<Badge
+					variant="warning"
+					className="font-semibold text-xs flex items-center gap-1"
+				>
+					{hasPending && (
+						<Clock className="w-3 h-3 text-amber-700 animate-pulse shrink-0" />
+					)}
+					<span>
+						Semua Dipinjam ({displayBorrowed} {item.unit})
+					</span>
 				</Badge>
 			);
 		}
@@ -160,7 +227,16 @@ export function ItemDetailSheet({
 						</button>
 
 						<TransactionForm
-							item={item}
+							item={{
+								...item,
+								current_stock: displayStock,
+								borrowed_quantity: displayBorrowed,
+								projected_stock: displayStock,
+								projected_borrowed: displayBorrowed,
+								has_pending_transactions: hasPending,
+								pending_transactions_count:
+									projected?.pendingCount ?? item.pending_transactions_count,
+							}}
 							action={activeAction}
 							onCancel={() => setActiveAction(null)}
 							isSubmitting={isSubmitting}
@@ -311,6 +387,39 @@ export function ItemDetailSheet({
 									</div>
 								</div>
 
+								{hasPending && (
+									<div
+										data-testid="projected-stock-alert"
+										className="mb-3.5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900 shadow-2xs"
+									>
+										<Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+										<div className="flex-1 min-w-0">
+											<div className="font-bold flex items-center gap-1.5 flex-wrap">
+												<span>Stok Perkiraan Lokal</span>
+												<span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+													{(projected?.pendingCount &&
+													projected.pendingCount > 0
+														? projected.pendingCount
+														: item.pending_transactions_count) ?? 1}{" "}
+													transaksi antrean
+												</span>
+											</div>
+											<p className="mt-0.5 text-amber-800 leading-relaxed text-[11px]">
+												Terdapat mutasi transaksi perangkat yang belum
+												disinkronkan ke server. Angka di bawah merupakan
+												perkiraan lokal (Terkonfirmasi server:{" "}
+												<strong>
+													{(projected?.hasPendingTransactions
+														? projected.confirmedStock
+														: null) ?? item.current_stock}{" "}
+													{item.unit}
+												</strong>
+												).
+											</p>
+										</div>
+									</div>
+								)}
+
 								<div className="rounded-xl border border-slate-200 p-3.5 mb-4 bg-white">
 									<div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2.5">
 										Informasi Ketersediaan
@@ -320,10 +429,10 @@ export function ItemDetailSheet({
 										<div className="grid grid-cols-2 gap-3 text-center">
 											<div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
 												<div className="text-[11px] text-slate-500 mb-0.5">
-													Stok Saat Ini
+													{hasPending ? "Stok Perkiraan" : "Stok Saat Ini"}
 												</div>
 												<div className="text-xl font-bold text-slate-900">
-													{item.current_stock}{" "}
+													{displayStock}{" "}
 													<span className="text-xs font-normal text-slate-500">
 														{item.unit}
 													</span>
@@ -345,10 +454,12 @@ export function ItemDetailSheet({
 										<div className="grid grid-cols-2 gap-3 text-center">
 											<div className="rounded-lg bg-emerald-50/70 p-2.5 border border-emerald-100">
 												<div className="text-[11px] text-emerald-800 mb-0.5 font-medium">
-													Aset Tersedia
+													{hasPending
+														? "Aset Tersedia (Perkiraan)"
+														: "Aset Tersedia"}
 												</div>
 												<div className="text-xl font-bold text-emerald-700">
-													{item.current_stock}{" "}
+													{displayStock}{" "}
 													<span className="text-xs font-normal text-emerald-600">
 														{item.unit}
 													</span>
@@ -356,10 +467,12 @@ export function ItemDetailSheet({
 											</div>
 											<div className="rounded-lg bg-blue-50/70 p-2.5 border border-blue-100">
 												<div className="text-[11px] text-blue-800 mb-0.5 font-medium">
-													Sedang Dipinjam
+													{hasPending
+														? "Sedang Dipinjam (Perkiraan)"
+														: "Sedang Dipinjam"}
 												</div>
 												<div className="text-xl font-bold text-blue-700">
-													{borrowedCount}{" "}
+													{displayBorrowed}{" "}
 													<span className="text-xs font-normal text-blue-600">
 														{item.unit}
 													</span>
@@ -368,7 +481,7 @@ export function ItemDetailSheet({
 										</div>
 									) : null}
 
-									{isConsumable && item.current_stock <= item.minimum_stock && (
+									{isConsumable && displayStock <= item.minimum_stock && (
 										<div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 border border-amber-200/80">
 											<AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
 											<span>
