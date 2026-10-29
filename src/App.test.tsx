@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "@/App";
 import { AppProviders } from "@/app/AppProviders";
@@ -35,14 +35,16 @@ describe("App Root Component Smoke Test", () => {
 		expect(screen.getAllByText("Online").length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("renders the foundation status card", () => {
+	it("renders the monitoring dashboard overview on home page", async () => {
 		render(
 			<AppProviders>
 				<App />
 			</AppProviders>,
 		);
-		expect(screen.getByText("PWA Mobile Inventory Foundation")).toBeDefined();
-		expect(screen.getByText("Inisialisasi Fondasi")).toBeDefined();
+		await waitFor(() => {
+			expect(screen.getByText("Total Barang")).toBeDefined();
+		});
+		expect(screen.getByText("Peringatan Stok Kritis")).toBeDefined();
 	});
 
 	it("redirects unauthenticated users to login page", () => {
