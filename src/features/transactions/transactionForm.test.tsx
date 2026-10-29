@@ -344,4 +344,31 @@ describe("TransactionForm Component (Task P3.2)", () => {
 		expect(screen.getByTestId("action-take-btn")).toBeDefined();
 		expect(screen.queryByTestId("stepper-quantity-input")).toBeNull();
 	});
+
+	// Task P5.8 Tests: Projected Stock in TransactionForm
+	it("respects projected stock as upper bound limit when item has pending transactions", () => {
+		const itemWithPending: Item = {
+			...mockConsumableItem,
+			current_stock: 50,
+			projected_stock: 15, // Efektif tersisa 15 karena ada 35 yang diambil di transaksi pending
+			has_pending_transactions: true,
+			pending_transactions_count: 1,
+		};
+
+		render(
+			<TransactionForm
+				item={itemWithPending}
+				action="take"
+				onSubmit={vi.fn()}
+			/>,
+		);
+
+		// Tombol Semua harus menunjukkan batas efektif 15 (bukan 50)
+		expect(screen.getByText("Semua (15)")).toBeDefined();
+
+		// Teks peringatan perkiraan stok harus muncul
+		expect(
+			screen.getByText(/Batas maksimal disesuaikan dengan perkiraan sisa stok/),
+		).toBeDefined();
+	});
 });
