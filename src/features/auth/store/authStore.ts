@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { syncPauseController } from "@/features/sync/lib/syncPauseController";
 import { setAuthTokenGetter, setUnauthorizedHandler } from "@/lib/api";
 import type { AuthSession, Employee } from "@/types/api";
 
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
 						false,
 					status: "authenticated",
 				});
+				syncPauseController.resume();
 				try {
 					localStorage.setItem("inventory_token", session.token);
 				} catch {
@@ -74,6 +76,7 @@ export const useAuthStore = create<AuthState>()(
 					token: null,
 					status: "expired",
 				});
+				syncPauseController.pause("Sesi autentikasi telah kedaluwarsa.");
 				try {
 					localStorage.removeItem("inventory_token");
 				} catch {
