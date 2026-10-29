@@ -150,4 +150,40 @@ describe("ItemCard Component (Task P2.4)", () => {
 		const { container } = render(<ItemCardSkeleton />);
 		expect(container.querySelector(".animate-pulse")).toBeDefined();
 	});
+
+	// Task P5.8 Tests: Projected Stock UI
+	it("renders estimated stock badge and pending queue indicator when item has pending transactions", () => {
+		const projectedItem: Item = {
+			...mockConsumable,
+			current_stock: 20,
+			projected_stock: 20,
+			has_pending_transactions: true,
+			pending_transactions_count: 2,
+		};
+
+		render(<ItemCard item={projectedItem} />);
+
+		// Badge ketersediaan harus memiliki awalan Perkiraan
+		expect(screen.getByText("Perkiraan: 20 rim")).toBeDefined();
+		// Badge antrean kecil harus muncul
+		expect(screen.getByText("2 Antrean")).toBeDefined();
+		expect(screen.getByTestId("item-pending-badge")).toBeDefined();
+	});
+
+	it("renders estimated stock badge for asset with borrowed quantity when pending", () => {
+		const projectedAsset: Item = {
+			...mockAsset,
+			current_stock: 2,
+			projected_stock: 2,
+			borrowed_quantity: 3,
+			projected_borrowed: 3,
+			has_pending_transactions: true,
+			pending_transactions_count: 1,
+		};
+
+		render(<ItemCard item={projectedAsset} />);
+
+		expect(screen.getByText("Perkiraan: 2 · Dipinjam 3 unit")).toBeDefined();
+		expect(screen.getByText("1 Antrean")).toBeDefined();
+	});
 });
