@@ -33,6 +33,19 @@ export interface OutboxItem {
 	createdAt: string;
 }
 
+// --- Schema Interface for Local Diagnostic Logs (Ring Buffer) ---
+export type DiagnosticLogLevel = "debug" | "info" | "warn" | "error";
+
+export interface DiagnosticLog {
+	id?: number;
+	timestamp: string;
+	level: DiagnosticLogLevel;
+	category: string;
+	message: string;
+	details?: Record<string, unknown> | string | null;
+	createdAt?: string;
+}
+
 export interface SyncMeta {
 	key: string;
 	value: string;
@@ -54,6 +67,7 @@ export class InventoryDatabase extends Dexie {
 	items!: Table<Item, string>;
 	meta!: Table<SyncMeta, string>;
 	outbox!: Table<OutboxItem, string>;
+	diagnostic_logs!: Table<DiagnosticLog, number>;
 
 	constructor() {
 		super(DB_NAME);
@@ -71,6 +85,31 @@ export class InventoryDatabase extends Dexie {
 			items:
 				"id, sku, name, type, location_id, [location_id+type], current_stock, minimum_stock, updated_at",
 		});
+
+		// Version 3 (Task P5.1): Indeks gabungan outbox untuk FIFO & isolasi akun, serta tabel ring buffer diagnostik
+		this.version(3)
+			.stores({
+				outbox:
+					"clientUuid, employeeId, operation, itemId, status, createdAt, nextAttemptAt, [status+createdAt], [itemId+status], [employeeId+status]",
+				diagnostic_logs: "++id, timestamp, level, category, createdAt",
+			})
+			.upgrade(async (tx) => {
+				// Pastikan entri outbox lama memiliki default attempts, nextAttemptAt, dan lastError
+				await tx
+					.table<OutboxItem>("outbox")
+					.toCollection()
+					.modify((item) => {
+						if (typeof item.attempts !== "number") {
+							item.attempts = 0;
+						}
+						if (item.nextAttemptAt === undefined) {
+							item.nextAttemptAt = null;
+						}
+						if (item.lastError === undefined) {
+							item.lastError = null;
+						}
+					});
+			});
 	}
 
 	/**
@@ -222,22 +261,77 @@ export class InventoryDatabase extends Dexie {
 
 	/**
 	 * Dapatkan jumlah antrean transaksi offline yang belum tersinkronisasi.
+	 * Mendukung filter employeeId dan opsi includeFailed (retryable).
 	 */
-	async getPendingOutboxCount(): Promise<number> {
-		return await this.outbox
-			.where("status")
-			.anyOf(["pending", "syncing"])
-			.count();
+	async getPendingOutboxCount(params?: {
+		employeeId?: string;
+		includeFailed?: boolean;
+	}): Promise<number> {
+		const statuses: OutboxStatus[] = params?.includeFailed
+			? ["pending", "syncing", "failed"]
+			: ["pending", "syncing"];
+
+		if (params?.employeeId) {
+			const employeeId = params.employeeId;
+			const pairs: [string, string][] = statuses.map((s) => [employeeId, s]);
+			return await this.outbox
+				.where("[employeeId+status]")
+				.anyOf(pairs)
+				.count();
+		}
+		return await this.outbox.where("status").anyOf(statuses).count();
 	}
 
 	/**
-	 * Ambil semua transaksi outbox yang sedang pending atau syncing.
+	 * Ambil semua transaksi outbox yang sedang pending atau syncing (dan optionally failed).
+	 * Terisolasi per employeeId jika parameter diberikan.
 	 */
-	async getPendingOutboxItems(): Promise<OutboxItem[]> {
+	async getPendingOutboxItems(params?: {
+		employeeId?: string;
+		includeFailed?: boolean;
+	}): Promise<OutboxItem[]> {
+		const statuses: OutboxStatus[] = params?.includeFailed
+			? ["pending", "syncing", "failed"]
+			: ["pending", "syncing"];
+
+		if (params?.employeeId) {
+			const employeeId = params.employeeId;
+			const pairs: [string, string][] = statuses.map((s) => [employeeId, s]);
+			return await this.outbox
+				.where("[employeeId+status]")
+				.anyOf(pairs)
+				.sortBy("createdAt");
+		}
 		return await this.outbox
 			.where("status")
-			.anyOf(["pending", "syncing"])
-			.toArray();
+			.anyOf(statuses)
+			.sortBy("createdAt");
+	}
+
+	/**
+	 * Reset item yang tertinggal dalam status 'syncing' saat aplikasi dibuka kembali (crash recovery).
+	 */
+	async resetAbandonedSyncingItems(): Promise<number> {
+		return await this.outbox
+			.where("status")
+			.equals("syncing")
+			.modify({ status: "pending" });
+	}
+
+	/**
+	 * Ambil entri outbox untuk item tertentu (berguna untuk FIFO per item dan kalkulasi delta stok).
+	 */
+	async getOutboxItemsByItem(
+		itemId: string,
+		status?: OutboxStatus,
+	): Promise<OutboxItem[]> {
+		if (status) {
+			return await this.outbox
+				.where("[itemId+status]")
+				.equals([itemId, status])
+				.sortBy("createdAt");
+		}
+		return await this.outbox.where("itemId").equals(itemId).sortBy("createdAt");
 	}
 
 	/**
@@ -268,15 +362,181 @@ export class InventoryDatabase extends Dexie {
 
 	/**
 	 * Ambil semua entri outbox terurut berdasarkan createdAt.
+	 * Mendukung filter status dan isolasi per employeeId.
 	 */
-	async getOutboxItems(status?: OutboxStatus): Promise<OutboxItem[]> {
-		if (status) {
+	async getOutboxItems(
+		params?:
+			| {
+					status?: OutboxStatus;
+					employeeId?: string;
+			  }
+			| OutboxStatus,
+	): Promise<OutboxItem[]> {
+		const status = typeof params === "string" ? params : params?.status;
+		const employeeId =
+			typeof params === "object" && params !== null
+				? params.employeeId
+				: undefined;
+
+		if (employeeId && status) {
 			return await this.outbox
+				.where("[employeeId+status]")
+				.equals([employeeId, status])
+				.reverse()
+				.sortBy("createdAt");
+		}
+
+		if (employeeId) {
+			const items = await this.outbox
+				.where("employeeId")
+				.equals(employeeId)
+				.sortBy("createdAt");
+			return items.reverse();
+		}
+
+		if (status) {
+			const items = await this.outbox
 				.where("status")
 				.equals(status)
 				.sortBy("createdAt");
+			return items.reverse();
 		}
+
 		return await this.outbox.orderBy("createdAt").reverse().toArray();
+	}
+
+	/**
+	 * Menambahkan catatan log diagnostik lokal dengan pembatasan ring buffer (default 100 entri).
+	 */
+	async addDiagnosticLog(
+		log: Omit<DiagnosticLog, "id">,
+		maxEntries = 100,
+	): Promise<number> {
+		const id = await this.diagnostic_logs.add({
+			...log,
+			createdAt: log.createdAt ?? new Date().toISOString(),
+		});
+
+		// Enforce ring-buffer cap
+		const count = await this.diagnostic_logs.count();
+		if (count > maxEntries) {
+			const excess = count - maxEntries;
+			const oldestKeys = await this.diagnostic_logs.limit(excess).primaryKeys();
+			await this.diagnostic_logs.bulkDelete(oldestKeys);
+		}
+
+		if (typeof window !== "undefined") {
+			window.dispatchEvent(
+				new CustomEvent("inventory:diagnostic-log-updated", {
+					detail: { id, level: log.level, category: log.category },
+				}),
+			);
+		}
+
+		return id;
+	}
+
+	/**
+	 * Mengambil jumlah total entri log diagnostik saat ini.
+	 */
+	async getDiagnosticLogCount(): Promise<number> {
+		return await this.diagnostic_logs.count();
+	}
+
+	/**
+	 * Mengambil entri log diagnostik terbaru terurut dari yang paling baru.
+	 * Mendukung overload angka (limit) atau objek opsi filter.
+	 */
+	async getDiagnosticLogs(
+		params?:
+			| number
+			| {
+					limit?: number;
+					level?: DiagnosticLogLevel | "all";
+					category?: string | "all";
+			  },
+	): Promise<DiagnosticLog[]> {
+		const limit = typeof params === "number" ? params : (params?.limit ?? 100);
+		const level = typeof params === "object" ? params.level : undefined;
+		const category = typeof params === "object" ? params.category : undefined;
+
+		let collection = this.diagnostic_logs.orderBy("id").reverse();
+
+		if (level && level !== "all") {
+			collection = collection.filter((log) => log.level === level);
+		}
+
+		if (category && category !== "all") {
+			collection = collection.filter((log) => log.category === category);
+		}
+
+		return await collection.limit(limit).toArray();
+	}
+
+	/**
+	 * Membersihkan seluruh log diagnostik.
+	 */
+	async clearDiagnosticLogs(): Promise<void> {
+		await this.diagnostic_logs.clear();
+		if (typeof window !== "undefined") {
+			window.dispatchEvent(
+				new CustomEvent("inventory:diagnostic-log-updated", {
+					detail: { action: "clear" },
+				}),
+			);
+		}
+	}
+
+	/**
+	 * Mengekspor seluruh log diagnostik menjadi teks yang mudah dibaca/disalin untuk tim IT.
+	 */
+	async exportDiagnosticLogsAsText(limit = 100): Promise<string> {
+		const logs = await this.getDiagnosticLogs(limit);
+		if (logs.length === 0) {
+			return "=== TIDAK ADA LOG DIAGNOSTIK ===";
+		}
+
+		const header = [
+			"============================================================",
+			"   INVENTORY PWA - LOG DIAGNOSTIK SISTEM (PT INALUM)        ",
+			`   Diekspor Pada: ${new Date().toISOString()}                `,
+			`   Jumlah Entri: ${logs.length} entri                       `,
+			"============================================================",
+			"",
+		].join("\n");
+
+		const body = logs
+			.reverse()
+			.map((l) => {
+				const detailStr = l.details
+					? `\n    Payload: ${typeof l.details === "object" ? JSON.stringify(l.details, null, 2).replace(/\n/g, "\n    ") : l.details}`
+					: "";
+				return `[${l.timestamp}] [${l.level.toUpperCase()}] [${l.category}] ${l.message}${detailStr}`;
+			})
+			.join("\n\n");
+
+		return `${header}${body}`;
+	}
+
+	/**
+	 * Mengekspor seluruh log diagnostik dalam format JSON terstruktur lengkap dengan metadata sistem.
+	 */
+	async exportDiagnosticLogsAsJson(limit = 100): Promise<string> {
+		const logs = await this.getDiagnosticLogs(limit);
+		const payload = {
+			exportedAt: new Date().toISOString(),
+			application: "Inventory PWA PT Inalum",
+			version: "1.0.0",
+			environment: {
+				userAgent:
+					typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+				onLine: typeof navigator !== "undefined" ? navigator.onLine : true,
+			},
+			totalLogs: logs.length,
+			logs: logs.reverse(),
+		};
+
+		return JSON.stringify(payload, null, 2);
 	}
 }
 
