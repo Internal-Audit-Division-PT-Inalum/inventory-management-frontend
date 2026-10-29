@@ -71,9 +71,21 @@ export function getActiveAuthToken(): string | null {
 	return null;
 }
 
-// Request Interceptor: Inject Sanctum Bearer Token
+interface RequestMetadata {
+	requestStartTime: number;
+}
+
+declare module "axios" {
+	export interface InternalAxiosRequestConfig {
+		metadata?: RequestMetadata;
+	}
+}
+
+// Request Interceptor: Inject Sanctum Bearer Token & Timestamp for RTT calculation
 api.interceptors.request.use(
 	(config: InternalAxiosRequestConfig) => {
+		config.metadata = { requestStartTime: Date.now() };
+
 		const token = getActiveAuthToken();
 		if (token && config.headers) {
 			config.headers.Authorization = `Bearer ${token}`;
@@ -88,17 +100,23 @@ api.interceptors.request.use(
 // Response Interceptor: Server Clock Skew Sync & Safe 401 Handling
 api.interceptors.response.use(
 	(response) => {
-		// Sinkronisasi pergeseran jam server dari header HTTP Date
+		// Sinkronisasi pergeseran jam server dari header HTTP Date dengan kompensasi RTT
 		const serverDate = response.headers?.date;
 		if (serverDate) {
-			setServerTimeOffset(serverDate);
+			setServerTimeOffset(serverDate, {
+				requestStartTime: response.config?.metadata?.requestStartTime,
+				responseTime: Date.now(),
+			});
 		}
 		return response;
 	},
 	(error: AxiosError) => {
 		// Sinkronisasi jam server bahkan saat respons error
 		if (error.response?.headers?.date) {
-			setServerTimeOffset(error.response.headers.date);
+			setServerTimeOffset(error.response.headers.date, {
+				requestStartTime: error.config?.metadata?.requestStartTime,
+				responseTime: Date.now(),
+			});
 		}
 
 		// Sesi kedaluwarsa (401 Unauthorized)
