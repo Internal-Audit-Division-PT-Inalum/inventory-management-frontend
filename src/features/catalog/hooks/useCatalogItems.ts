@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { SYNC_ENGINE_EVENT } from "@/features/sync";
+import { TRANSACTION_COMMITTED_EVENT } from "@/features/transactions/lib/outboxEvents";
+import { calculateProjectedStocksBatch } from "@/features/transactions/lib/projectedStock";
 import { db } from "@/lib/db";
 import type { InventoryItemType, Item, Location } from "@/types/api";
 import { CATALOG_SYNC_EVENT } from "../api/syncCatalog";
@@ -65,7 +68,30 @@ export function useCatalogItems(
 			};
 
 			const data = await db.getCatalogItems(queryOptions);
-			setRawItems(data);
+
+			// Ambil transaksi antrean outbox yang belum tersinkronkan (pending / syncing)
+			const pendingOutbox = await db.outbox
+				.where("status")
+				.anyOf(["pending", "syncing"])
+				.toArray();
+
+			// Hitung proyeksi stok lokal untuk seluruh barang katalog (Task P5.8)
+			const projectedMap = calculateProjectedStocksBatch(data, pendingOutbox);
+
+			const enrichedWithProjections = data.map((item) => {
+				const proj = projectedMap.get(item.id);
+				return {
+					...item,
+					projected_stock: proj ? proj.projectedStock : item.current_stock,
+					projected_borrowed: proj
+						? proj.projectedBorrowed
+						: (item.borrowed_quantity ?? 0),
+					has_pending_transactions: proj ? proj.hasPendingTransactions : false,
+					pending_transactions_count: proj ? proj.pendingCount : 0,
+				};
+			});
+
+			setRawItems(enrichedWithProjections);
 		} catch (err) {
 			console.error("Gagal memuat barang katalog:", err);
 		} finally {
@@ -86,12 +112,19 @@ export function useCatalogItems(
 
 		if (typeof window !== "undefined") {
 			window.addEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
+			window.addEventListener(TRANSACTION_COMMITTED_EVENT, handleCatalogSynced);
+			window.addEventListener(SYNC_ENGINE_EVENT, handleCatalogSynced);
 		}
 
 		return () => {
 			isMounted = false;
 			if (typeof window !== "undefined") {
 				window.removeEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
+				window.removeEventListener(
+					TRANSACTION_COMMITTED_EVENT,
+					handleCatalogSynced,
+				);
+				window.removeEventListener(SYNC_ENGINE_EVENT, handleCatalogSynced);
 			}
 		};
 	}, [loadItems]);
