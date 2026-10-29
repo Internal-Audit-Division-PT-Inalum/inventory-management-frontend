@@ -38,6 +38,7 @@ export type CatalogSortOption =
 
 export interface CatalogViewProps {
 	className?: string;
+	initialStockFilter?: CatalogStockFilter;
 	onItemClick?: (item: Item) => void;
 	onActionSelect?: (item: Item, action: TransactionAction) => void;
 	onTransactSubmit?: (
@@ -58,6 +59,7 @@ export interface CatalogViewProps {
  */
 export function CatalogView({
 	className,
+	initialStockFilter = "all",
 	onItemClick,
 	onActionSelect,
 	onTransactSubmit,
@@ -73,7 +75,14 @@ export function CatalogView({
 	>(() => qr.locationId ?? undefined);
 	const [typeFilter, setTypeFilter] = React.useState<CatalogTypeFilter>("all");
 	const [stockFilter, setStockFilter] =
-		React.useState<CatalogStockFilter>("all");
+		React.useState<CatalogStockFilter>(initialStockFilter);
+
+	// Sinkronkan filter stok jika prop initialStockFilter berubah dari luar
+	React.useEffect(() => {
+		if (initialStockFilter) {
+			setStockFilter(initialStockFilter);
+		}
+	}, [initialStockFilter]);
 	const [sortBy, setSortBy] = React.useState<CatalogSortOption>("name");
 	const [feedbackResult, setFeedbackResult] =
 		React.useState<TransactSubmitResult | null>(null);
