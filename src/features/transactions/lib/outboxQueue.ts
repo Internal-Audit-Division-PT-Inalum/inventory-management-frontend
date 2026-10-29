@@ -1,152 +1,54 @@
-import { CATALOG_SYNC_EVENT } from "@/features/catalog/api/syncCatalog";
+import { calculateNextAttemptAt } from "@/features/sync/lib/backoff";
+import { classifySyncResponse } from "@/features/sync/lib/responseClassifier";
+import { syncPauseController } from "@/features/sync/lib/syncPauseController";
 import { db, type OutboxItem } from "@/lib/db";
-import { isAuthError, isFatalError, mapApiError } from "@/lib/errors";
+import { mapApiError } from "@/lib/errors";
 import type { Item } from "@/types/api";
 import { transactItemApi } from "../api/transactItem";
-import type {
-	EnqueueTransactionParams,
-	TransactionAction,
-	TransactSubmitResult,
-} from "../types";
+import type { EnqueueTransactionParams, TransactSubmitResult } from "../types";
+import {
+	type AppliedStockDelta,
+	applyOptimisticStock,
+	revertOptimisticStock,
+} from "./optimisticStock";
+import {
+	broadcastTransactionCommitted,
+	TRANSACTION_COMMITTED_EVENT,
+} from "./outboxEvents";
+import {
+	assertValidStatusTransition,
+	discardOutboxItem,
+	InvalidStatusTransitionError,
+	isValidStatusTransition,
+	retryOutboxItem,
+	transitionOutboxStatus,
+	VALID_STATUS_TRANSITIONS,
+} from "./statusMachine";
 import { buildOutboxItem } from "./transactionIdentity";
 
-/**
- * Event nama global saat transaksi dimasukkan ke outbox atau status sinkronisasinya berubah.
- */
-export const TRANSACTION_COMMITTED_EVENT = "inventory:transaction-committed";
-
-export interface AppliedStockDelta {
-	deltaStock: number;
-	deltaBorrowed: number;
-}
-
-/**
- * Menerapkan mutasi stok lokal secara optimistik di IndexedDB agar UI langsung responsif.
- */
-export async function applyOptimisticStock(
-	item: Item,
-	action: TransactionAction,
-	quantity: number,
-): Promise<AppliedStockDelta> {
-	try {
-		const currentRecord = await db.items.get(item.id);
-		const currentStock =
-			currentRecord?.current_stock ?? item.current_stock ?? 0;
-		const borrowedQty =
-			currentRecord?.borrowed_quantity ?? item.borrowed_quantity ?? 0;
-		let newStock = currentStock;
-		let newBorrowed = borrowedQty;
-
-		if (action === "take") {
-			newStock = Math.max(0, currentStock - quantity);
-		} else if (action === "borrow") {
-			const actualBorrow = Math.min(currentStock, quantity);
-			newStock = currentStock - actualBorrow;
-			if (item.type === "asset") {
-				newBorrowed = borrowedQty + actualBorrow;
-			}
-		} else if (action === "add") {
-			newStock = currentStock + quantity;
-		} else if (action === "return") {
-			if (item.type === "asset") {
-				const actualReturn = Math.min(borrowedQty, quantity);
-				newBorrowed = borrowedQty - actualReturn;
-				newStock = currentStock + actualReturn;
-			} else {
-				newStock = currentStock + quantity;
-			}
-		}
-
-		await db.items.update(item.id, {
-			current_stock: newStock,
-			...(item.type === "asset" ? { borrowed_quantity: newBorrowed } : {}),
-			updated_at: new Date().toISOString(),
-		});
-
-		return {
-			deltaStock: newStock - currentStock,
-			deltaBorrowed: newBorrowed - borrowedQty,
-		};
-	} catch (err) {
-		console.warn("Gagal menerapkan mutasi stok optimistik lokal:", err);
-		return { deltaStock: 0, deltaBorrowed: 0 };
-	}
-}
+// Re-export untuk backward compatibility penuh
+export {
+	type AppliedStockDelta,
+	applyOptimisticStock,
+	assertValidStatusTransition,
+	broadcastTransactionCommitted,
+	discardOutboxItem,
+	InvalidStatusTransitionError,
+	isValidStatusTransition,
+	retryOutboxItem,
+	revertOptimisticStock,
+	TRANSACTION_COMMITTED_EVENT,
+	transitionOutboxStatus,
+	VALID_STATUS_TRANSITIONS,
+};
 
 /**
- * Membatalkan (revert) mutasi stok optimistik jika server menolak transaksi secara fatal.
+ * Mendaftarkan transaksi ke antrean outbox Dexie secara murni (Pure Enqueue).
+ * Menerapkan mutasi stok optimistik lokal, mencatat log diagnostik, dan menyiarkan event.
  */
-export async function revertOptimisticStock(
-	item: Item,
-	action: TransactionAction,
-	quantity: number,
-	appliedDeltas?: AppliedStockDelta,
-): Promise<void> {
-	try {
-		const currentRecord = await db.items.get(item.id);
-		const baselineStock = currentRecord?.current_stock ?? item.current_stock;
-		const baselineBorrowed =
-			currentRecord?.borrowed_quantity ?? item.borrowed_quantity ?? 0;
-
-		let revertedStock = baselineStock;
-		let revertedBorrowed = baselineBorrowed;
-
-		if (appliedDeltas) {
-			revertedStock = baselineStock - appliedDeltas.deltaStock;
-			revertedBorrowed = baselineBorrowed - appliedDeltas.deltaBorrowed;
-		} else {
-			if (action === "take" || action === "borrow") {
-				revertedStock = baselineStock + quantity;
-				if (item.type === "asset" && action === "borrow") {
-					revertedBorrowed = Math.max(0, baselineBorrowed - quantity);
-				}
-			} else if (action === "add" || action === "return") {
-				revertedStock = Math.max(0, baselineStock - quantity);
-				if (item.type === "asset" && action === "return") {
-					revertedBorrowed = baselineBorrowed + quantity;
-				}
-			}
-		}
-
-		await db.items.update(item.id, {
-			current_stock: Math.max(0, revertedStock),
-			...(item.type === "asset"
-				? { borrowed_quantity: Math.max(0, revertedBorrowed) }
-				: {}),
-			updated_at: new Date().toISOString(),
-		});
-	} catch (err) {
-		console.warn("Gagal membatalkan mutasi stok optimistik:", err);
-	}
-}
-
-/**
- * Menyiarkan event transaksi lokal ke window agar katalog dan komponen UI reaktif.
- */
-function broadcastTransactionCommitted(outboxItem: OutboxItem) {
-	if (typeof window !== "undefined") {
-		window.dispatchEvent(
-			new CustomEvent(TRANSACTION_COMMITTED_EVENT, { detail: outboxItem }),
-		);
-		window.dispatchEvent(new CustomEvent(CATALOG_SYNC_EVENT));
-	}
-}
-
-/**
- * Zero-Data-Loss Transaction Submission Engine.
- *
- * 1. Simpan ke IndexedDB (tabel outbox) DAHULU sebelum aksi jaringan.
- * 2. Terapkan perubahan stok optimistik pada katalog lokal.
- * 3. Jika offline -> tandai 'pending', kembalikan sukses antrean.
- * 4. Jika online -> coba kirim langsung ke server:
- *    - 200/201 -> tandai 'synced', perbarui stok otoritatif server.
- *    - Retryable (offline drop, 5xx, timeout, 429) -> biarkan 'pending' di outbox.
- *    - Fatal (422 stok kurang, pinjaman lebih, 409) -> tandai 'rejected', revert stok lokal.
- *    - Auth (401) -> biarkan 'pending', tunggu login ulang.
- */
-export async function enqueueAndProcessTransaction(
+export async function enqueueTransaction(
 	params: EnqueueTransactionParams,
-): Promise<TransactSubmitResult> {
+): Promise<OutboxItem> {
 	const {
 		item,
 		action,
@@ -182,10 +84,40 @@ export async function enqueueAndProcessTransaction(
 		appliedDeltaBorrowed: deltas.deltaBorrowed,
 	});
 
-	// Siarkan event awal bahwa transaksi sudah masuk antrean lokal
+	// 4. Catat log diagnostik
+	await db.addDiagnosticLog({
+		timestamp: new Date().toISOString(),
+		level: "info",
+		category: "OUTBOX",
+		message: `Transaction enqueued: ${outboxItem.clientUuid} (${outboxItem.operation} ${outboxItem.quantity})`,
+		details: {
+			itemId: item.id,
+			employeeId,
+			operation: action,
+			quantity: formData.quantity,
+		},
+	});
+
+	// 5. Siarkan event transaksi lokal
 	broadcastTransactionCommitted(outboxItem);
 
-	// 4. Periksa ketersediaan jaringan
+	return outboxItem;
+}
+
+/**
+ * Zero-Data-Loss Transaction Submission Engine.
+ *
+ * 1. Panggil enqueueTransaction() DAHULU sebelum aksi jaringan.
+ * 2. Jika offline -> kembalikan status antrean (queued: true).
+ * 3. Jika online -> coba kirim langsung ke server via processPendingOutboxEntry().
+ */
+export async function enqueueAndProcessTransaction(
+	params: EnqueueTransactionParams,
+): Promise<TransactSubmitResult> {
+	// 1. Enqueue transaksi secara murni
+	const outboxItem = await enqueueTransaction(params);
+
+	// 2. Periksa ketersediaan jaringan
 	const isOnline =
 		typeof navigator !== "undefined" ? navigator.onLine !== false : true;
 
@@ -200,35 +132,35 @@ export async function enqueueAndProcessTransaction(
 		};
 	}
 
-	// 5. Jika online, langsung proses pengiriman antrean ini
+	// 3. Jika online, langsung proses pengiriman antrean ini
 	return processPendingOutboxEntry(outboxItem);
 }
 
 /**
  * Memproses satu entri OutboxItem yang berstatus 'pending':
- * Mengirim ke server, memperbarui status di Dexie, menerapkan stok otoritatif,
- * atau me-revert stok optimistik jika ditolak (422/409).
+ * Mengirim ke server, mentransisikan status melalui statusMachine, menerapkan stok otoritatif,
+ * atau me-revert stok optimistik jika ditolak permanen (422/409).
  */
 export async function processPendingOutboxEntry(
 	outboxItem: OutboxItem,
 ): Promise<TransactSubmitResult> {
 	const currentAttempts = (outboxItem.attempts ?? 0) + 1;
-	await db.updateOutboxItem(outboxItem.clientUuid, {
-		status: "syncing",
+	await transitionOutboxStatus(outboxItem.clientUuid, "syncing", {
 		attempts: currentAttempts,
 	});
 
 	try {
 		const response = await transactItemApi(outboxItem);
 
-		// Sukses (200 / 201)
-		const syncedItem: OutboxItem = {
-			...outboxItem,
-			status: "synced",
-			attempts: currentAttempts,
-			lastError: null,
-		};
-		await db.updateOutboxItem(outboxItem.clientUuid, syncedItem);
+		// Sukses (200 / 201) -> transisi ke 'synced'
+		const syncedItem = await transitionOutboxStatus(
+			outboxItem.clientUuid,
+			"synced",
+			{
+				attempts: currentAttempts,
+				lastError: null,
+			},
+		);
 
 		// Perbarui stok lokal dengan data otoritatif dari server jika tersedia
 		if (response.data) {
@@ -258,8 +190,6 @@ export async function processPendingOutboxEntry(
 			await db.items.update(outboxItem.itemId, updatePayload);
 		}
 
-		broadcastTransactionCommitted(syncedItem);
-
 		return {
 			success: true,
 			synced: true,
@@ -270,20 +200,23 @@ export async function processPendingOutboxEntry(
 			message: response.message || "Transaksi berhasil dikirim ke server.",
 		};
 	} catch (error) {
+		const classification = classifySyncResponse(error);
 		const appError = mapApiError(error);
 
-		if (isFatalError(appError)) {
-			// Penolakan permanen aturan bisnis (422 Insufficient Stock, 409 Conflict, dll.)
-			const rejectedItem: OutboxItem = {
-				...outboxItem,
-				status: "rejected",
-				attempts: currentAttempts,
-				lastError: {
-					code: appError.code,
-					message: appError.message,
+		if (classification.action === "reject") {
+			// Penolakan permanen aturan bisnis (422 Insufficient Stock, 409 Conflict, dll.) -> 'rejected'
+			const rejectedItem = await transitionOutboxStatus(
+				outboxItem.clientUuid,
+				"rejected",
+				{
+					attempts: currentAttempts,
+					nextAttemptAt: null,
+					lastError: {
+						code: classification.code,
+						message: classification.message,
+					},
 				},
-			};
-			await db.updateOutboxItem(outboxItem.clientUuid, rejectedItem);
+			);
 
 			// Kembalikan (revert) stok lokal optimistik jika item ditemukan
 			const localItem = await db.items.get(outboxItem.itemId);
@@ -300,7 +233,6 @@ export async function processPendingOutboxEntry(
 						: undefined,
 				);
 			}
-			broadcastTransactionCommitted(rejectedItem);
 
 			return {
 				success: false,
@@ -309,23 +241,26 @@ export async function processPendingOutboxEntry(
 				rejected: true,
 				outboxItem: rejectedItem,
 				error: appError,
-				message: appError.message,
+				message: classification.message,
 			};
 		}
 
-		if (isAuthError(appError)) {
-			// Sesi kedaluwarsa: outbox tetap disimpan sebagai 'pending'
-			const pendingAuthItem: OutboxItem = {
-				...outboxItem,
-				status: "pending",
-				attempts: currentAttempts,
-				lastError: {
-					code: appError.code,
-					message: appError.message,
+		if (classification.action === "pause_auth") {
+			// Sesi kedaluwarsa: outbox di-reset kembali ke 'pending' (pause queue)
+			syncPauseController.pause(classification.message);
+
+			const pendingAuthItem = await transitionOutboxStatus(
+				outboxItem.clientUuid,
+				"pending",
+				{
+					attempts: currentAttempts,
+					nextAttemptAt: null,
+					lastError: {
+						code: classification.code,
+						message: classification.message,
+					},
 				},
-			};
-			await db.updateOutboxItem(outboxItem.clientUuid, pendingAuthItem);
-			broadcastTransactionCommitted(pendingAuthItem);
+			);
 
 			return {
 				success: false,
@@ -334,23 +269,28 @@ export async function processPendingOutboxEntry(
 				authError: true,
 				outboxItem: pendingAuthItem,
 				error: appError,
-				message:
-					"Sesi login berakhir. Transaksi tersimpan dan akan dikirim setelah login ulang.",
+				message: classification.message,
 			};
 		}
 
-		// Galat sementara / retryable (jaringan putus saat request, 5xx server error, timeout, 429)
-		const pendingRetryItem: OutboxItem = {
-			...outboxItem,
-			status: "pending",
-			attempts: currentAttempts,
-			lastError: {
-				code: appError.code,
-				message: appError.message,
+		// Galat sementara / retryable (jaringan putus saat request, 5xx server error, timeout, 429 rate limit)
+		const nextAttemptAt =
+			typeof classification.retryAfterMs === "number"
+				? new Date(Date.now() + classification.retryAfterMs).toISOString()
+				: calculateNextAttemptAt(currentAttempts);
+
+		const pendingRetryItem = await transitionOutboxStatus(
+			outboxItem.clientUuid,
+			"pending",
+			{
+				attempts: currentAttempts,
+				nextAttemptAt,
+				lastError: {
+					code: classification.code,
+					message: classification.message,
+				},
 			},
-		};
-		await db.updateOutboxItem(outboxItem.clientUuid, pendingRetryItem);
-		broadcastTransactionCommitted(pendingRetryItem);
+		);
 
 		return {
 			success: true,
@@ -359,6 +299,7 @@ export async function processPendingOutboxEntry(
 			outboxItem: pendingRetryItem,
 			error: appError,
 			message:
+				classification.message ||
 				"Jaringan tidak stabil. Transaksi disimpan di antrean perangkat dan akan dicoba kembali secara otomatis.",
 		};
 	}
