@@ -1,7 +1,8 @@
 import * as React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { InstallPromptBanner } from "@/features/pwa/components/InstallPromptBanner";
 import { requestPersistentStorage } from "@/features/pwa/lib/persistentStorage";
+import { IosQueueWarningBanner, useSyncScheduler } from "@/features/sync";
 import { cn } from "@/lib/utils";
 import { AppHeader, type AppHeaderProps } from "./AppHeader";
 import { BottomNav, type BottomNavProps } from "./BottomNav";
@@ -34,10 +35,16 @@ export function AppShell({
 	className,
 	contentClassName,
 }: AppShellProps) {
+	// Aktifkan orchestrator sinkronisasi outbox di background (buka app, online, visibility, interval)
+	useSyncScheduler();
+
 	// Minta penyimpanan persisten di peramban saat inisialisasi layout
 	React.useEffect(() => {
 		void requestPersistentStorage();
 	}, []);
+
+	const location = useLocation();
+	const isOutboxPage = location.pathname.startsWith("/outbox");
 
 	return (
 		<div
@@ -56,6 +63,7 @@ export function AppShell({
 				)}
 			>
 				{showInstallPrompt && <InstallPromptBanner />}
+				{!isOutboxPage && <IosQueueWarningBanner />}
 
 				{children ?? <Outlet />}
 			</main>
