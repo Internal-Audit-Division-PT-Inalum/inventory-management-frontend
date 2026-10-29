@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { db } from "@/lib/db";
-import { type CatalogSyncResult, syncCatalog } from "../api/syncCatalog";
+import {
+	CATALOG_SYNC_EVENT,
+	type CatalogSyncResult,
+	syncCatalog,
+} from "../api/syncCatalog";
 
 export interface UseCatalogSyncOptions {
 	autoSync?: boolean;
@@ -45,8 +49,8 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 			if (isMounted) {
 				setState((prev) => ({
 					...prev,
-					lastSyncedAt: lastSynced || null,
-					etag: etag || null,
+					lastSyncedAt: prev.lastSyncedAt || lastSynced || null,
+					etag: prev.etag || etag || null,
 				}));
 			}
 		}
@@ -123,6 +127,43 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 			window.removeEventListener("offline", handleOffline);
 		};
 	}, [autoSync, syncNow]);
+
+	// Listener sinkronisasi katalog global pasca-sync (Task P5.12):
+	// Memperbarui state kesegaran lastSyncedAt, etag, dan error secara reaktif saat katalog disinkronkan dari background syncEngine.
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleCatalogSynced = (event: Event) => {
+			const customEvent = event as CustomEvent<CatalogSyncResult | undefined>;
+			const detail = customEvent.detail;
+			if (detail?.lastSyncedAt) {
+				setState((prev) => ({
+					...prev,
+					lastSyncedAt: detail.lastSyncedAt,
+					etag: detail.etag ?? prev.etag,
+					isOffline: Boolean(detail.isOffline),
+					error: detail.error ?? null,
+				}));
+			} else {
+				// Fallback jika event tidak menyertakan detail (membaca langsung dari Dexie meta)
+				Promise.all([
+					db.getMeta("catalog_last_synced_at"),
+					db.getMeta("catalog_etag"),
+				]).then(([lastSynced, etag]) => {
+					setState((prev) => ({
+						...prev,
+						lastSyncedAt: lastSynced || prev.lastSyncedAt,
+						etag: etag || prev.etag,
+					}));
+				});
+			}
+		};
+
+		window.addEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
+		return () => {
+			window.removeEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
+		};
+	}, []);
 
 	return {
 		...state,
