@@ -15,11 +15,14 @@ export function HomePage() {
 	const {
 		isChecking,
 		isLoggingOut,
+		isSyncingBeforeLogout,
 		showWarningDialog,
-		pendingCount,
+		myPendingCount,
+		otherPendingCount,
 		requestLogout,
 		cancelLogout,
 		confirmLogout,
+		syncBeforeLogout,
 	} = useLogout();
 
 	return (
@@ -93,9 +96,13 @@ export function HomePage() {
 			<LogoutConfirmDialog
 				open={showWarningDialog}
 				onOpenChange={cancelLogout}
-				pendingCount={pendingCount}
+				employee={employee}
+				myPendingCount={myPendingCount}
+				otherPendingCount={otherPendingCount}
 				onConfirm={confirmLogout}
+				onSyncBeforeLogout={syncBeforeLogout}
 				isPending={isLoggingOut}
+				isSyncing={isSyncingBeforeLogout}
 			/>
 		</div>
 	);
