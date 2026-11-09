@@ -126,7 +126,7 @@ export function HomePage() {
 							<Link
 								to="/change-pin"
 								aria-label="Ubah PIN"
-								className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100"
+								className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 touch-target"
 								title="Ubah PIN Keamanan"
 							>
 								<KeyRound className="h-4 w-4" />
@@ -136,7 +136,7 @@ export function HomePage() {
 								onClick={() => requestLogout()}
 								disabled={isChecking || isLoggingOut}
 								aria-label="Keluar"
-								className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+								className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 touch-target"
 								title="Keluar Akun"
 							>
 								<LogOut className="h-4 w-4" />

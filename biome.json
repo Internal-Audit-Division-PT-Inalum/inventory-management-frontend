@@ -8,6 +8,8 @@
 	"files": {
 		"includes": [
 			"src/**",
+			"e2e/**",
+			"playwright.config.ts",
 			"vite.config.ts",
 			"vitest.config.ts",
 			"tsconfig*.json"

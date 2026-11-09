@@ -27,3 +27,7 @@ dist-ssr
 GEMINI.md
 AGENTS.md
 dev-dist
+
+# Playwright Test Artifacts
+test-results/
+playwright-report/

@@ -3,7 +3,7 @@ import type { Item } from "@/types/api";
 import type { RecentActivityItem } from "../types";
 
 /**
- * Memetakan operasi transaksi ke label ramah pengguna (Bahasa Indonesia)
+ * Maps inventory transaction operations to localized Indonesian user-facing labels.
  */
 export function getOperationLabel(operation: OutboxOperation): string {
 	switch (operation) {
@@ -21,7 +21,7 @@ export function getOperationLabel(operation: OutboxOperation): string {
 }
 
 /**
- * Memetakan status outbox ke label status sinkronisasi
+ * Maps outbox synchronization status to localized Indonesian labels.
  */
 export function getStatusLabel(status: OutboxStatus): string {
 	switch (status) {
@@ -41,7 +41,7 @@ export function getStatusLabel(status: OutboxStatus): string {
 }
 
 /**
- * Format waktu relatif (time-ago) standar Indonesia
+ * Formats timestamps into localized Indonesian relative time representations.
  */
 export function formatRelativeTime(
 	dateString: string,
@@ -52,7 +52,7 @@ export function formatRelativeTime(
 		if (Number.isNaN(then)) return dateString;
 
 		const diffMs = nowMs - then;
-		if (diffMs < 0) return "Baru saja"; // Timestamp sedikit di masa depan (clock skew)
+		if (diffMs < 0) return "Baru saja";
 
 		const diffSeconds = Math.floor(diffMs / 1000);
 		if (diffSeconds < 60) return "Baru saja";
@@ -80,7 +80,7 @@ export function formatRelativeTime(
 }
 
 /**
- * Mentransformasikan entri outbox menjadi entri aktivitas terbaru yang diperkaya
+ * Transforms raw outbox items into enriched activity feed representations.
  */
 export function transformOutboxToActivities(
 	outboxItems: OutboxItem[],
@@ -102,12 +102,9 @@ export function transformOutboxToActivities(
 			quantity: outbox.quantity,
 			status: outbox.status,
 			statusLabel: getStatusLabel(outbox.status),
-			occurredAt: outbox.occurredAt || outbox.createdAt,
-			relativeTime: formatRelativeTime(
-				outbox.occurredAt || outbox.createdAt,
-				nowMs,
-			),
-			notes: outbox.notes || null,
+			occurredAt: outbox.occurredAt,
+			relativeTime: formatRelativeTime(outbox.occurredAt, nowMs),
+			notes: outbox.notes,
 			errorMessage: outbox.lastError?.message || null,
 		};
 	});
