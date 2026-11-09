@@ -18,6 +18,7 @@ export default defineConfig({
         "icons/*.png",
       ],
       manifest: {
+        id: "/",
         name: "Inventory System — Internal Audit PT INALUM",
         short_name: "Inventory IIA",
         description:
@@ -28,6 +29,30 @@ export default defineConfig({
         orientation: "portrait-primary",
         start_url: "/",
         scope: "/",
+        categories: ["business", "productivity", "utilities"],
+        shortcuts: [
+          {
+            name: "Katalog Inventaris",
+            short_name: "Katalog",
+            description: "Buka katalog barang dan lokasi rak fisik",
+            url: "/",
+            icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Pinjaman Saya",
+            short_name: "Pinjaman",
+            description: "Lihat status pinjaman alat dan pengembalian",
+            url: "/loans",
+            icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "Antrean Outbox",
+            short_name: "Antrean",
+            description: "Cek antrean transaksi offline dan sinkronisasi",
+            url: "/outbox",
+            icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+          },
+        ],
         icons: [
           {
             src: "/icons/icon-192x192.png",
@@ -59,6 +84,7 @@ export default defineConfig({
         // App Shell precaching saja (HTML, CSS, JS, font, static assets)
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
         navigateFallback: "/index.html",
+        cleanupOutdatedCaches: true,
         // PENTING: Tanpa runtimeCaching untuk /api/*
         // Pengelolaan cache data bisnis ditangani penuh secara deterministik oleh Dexie IndexedDB
       },
