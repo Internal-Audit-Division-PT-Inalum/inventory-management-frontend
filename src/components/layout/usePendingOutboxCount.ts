@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 export const OUTBOX_CHANGE_EVENT = "outbox_change";
 
 /**
- * Hook reaktif untuk memantau jumlah antrean transaksi offline di IndexedDB.
- * Mendengarkan interval berkala serta event kustom `outbox_change`.
+ * Reactive hook querying the count of pending offline transactions in IndexedDB.
+ * Subscribes to periodic polling and outbox mutation window events.
  */
 export function usePendingOutboxCount(intervalMs = 5000): number {
 	const [count, setCount] = React.useState<number>(0);
@@ -20,7 +20,7 @@ export function usePendingOutboxCount(intervalMs = 5000): number {
 					setCount(currentCount);
 				}
 			} catch {
-				// Abaikan galat akses IndexedDB pada transisi teardown
+				// Suppress IndexedDB access errors during component teardown
 			}
 		};
 

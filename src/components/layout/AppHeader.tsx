@@ -17,10 +17,8 @@ export interface AppHeaderProps {
 }
 
 /**
- * Header Aplikasi Mobile PWA Inventaris PT INALUM:
- * - Menampilkan identitas korporat Divisi Internal Audit
- * - Indikator status jaringan real-time (Online/Offline)
- * - Badge Namecode pegawai terautentikasi dengan akses cepat ke Profil
+ * Corporate application header for PT INALUM Mobile Inventory PWA.
+ * Displays corporate branding, real-time connectivity status, and employee profile navigation badge.
  */
 export function AppHeader({
 	title = "INVENTORY SYSTEM",
@@ -103,7 +101,7 @@ export function AppHeader({
 						to="/profile"
 						aria-label={`Profil ${employee.name} (${employee.namecode})`}
 						title={`Profil ${employee.name}`}
-						className="flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/80 px-2 py-0.5 text-xs font-semibold text-[#004785] transition-all hover:bg-blue-100/70 active:scale-95"
+						className="flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-[#004785] transition-all hover:bg-blue-100/70 active:scale-95 touch-target min-h-[32px]"
 					>
 						<User className="h-3.5 w-3.5 text-[#004785]" />
 						<span className="font-mono">{employee.namecode}</span>

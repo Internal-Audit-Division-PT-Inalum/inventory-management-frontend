@@ -19,11 +19,9 @@ export interface AppShellProps {
 }
 
 /**
- * Shell layout utama untuk PWA Mobile Inventaris PT INALUM:
- * - Menyediakan AppHeader terpadu dengan status online/offline dan identitas korporat.
- * - Wadah konten fleksibel (mendukung Outlet React Router maupun children langsung).
- * - BottomNav tetap di bagian bawah dengan kompensasi padding safe area.
- * - Banner prompt instalasi PWA (Android / iOS) dan aktivasi persistent storage otomatis.
+ * Primary application shell layout for PT INALUM Mobile Inventory PWA.
+ * Provides responsive viewport containment, sticky corporate header,
+ * safe-area padded bottom navigation, and automated background sync scheduling.
  */
 export function AppShell({
 	children,
@@ -35,10 +33,8 @@ export function AppShell({
 	className,
 	contentClassName,
 }: AppShellProps) {
-	// Aktifkan orchestrator sinkronisasi outbox di background (buka app, online, visibility, interval)
 	useSyncScheduler();
 
-	// Minta penyimpanan persisten di peramban saat inisialisasi layout
 	React.useEffect(() => {
 		void requestPersistentStorage();
 	}, []);

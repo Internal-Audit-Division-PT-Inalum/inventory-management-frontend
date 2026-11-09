@@ -18,10 +18,9 @@ interface NavItemConfig {
 }
 
 /**
- * Bottom Navigation Bar untuk Mobile PWA Inventaris:
- * - Mengakomodasi 4 navigasi utama: Katalog, Pinjaman, Antrean Offline, Profil.
- * - Indikator badge dinamis untuk antrean outbox transaksi offline yang belum tersinkronisasi.
- * - Optimalisasi safe-area-inset-bottom untuk perangkat iPhone & Android modern.
+ * Fixed bottom navigation bar for mobile PWA viewports.
+ * Houses primary routes (Catalog, Loans, Outbox, Profile) and live outbox queue badges.
+ * Built with safe-area insets padding and WCAG compliant 48px touch targets.
  */
 export function BottomNav({ className }: BottomNavProps) {
 	const location = useLocation();

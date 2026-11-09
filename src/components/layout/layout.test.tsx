@@ -9,7 +9,7 @@ import { AppShell } from "./AppShell";
 import { BottomNav } from "./BottomNav";
 import { OUTBOX_CHANGE_EVENT } from "./usePendingOutboxCount";
 
-describe("Layout Components Suite (Task P2.6)", () => {
+describe("Layout Components Suite", () => {
 	beforeEach(async () => {
 		localStorage.clear();
 		await db.outbox.clear();
