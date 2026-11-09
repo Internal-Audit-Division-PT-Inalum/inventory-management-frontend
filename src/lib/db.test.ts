@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Item, Location } from "@/types/api";
 import { db } from "./db";
 
-describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
+describe("IndexedDB Dexie Schema & Repository", () => {
 	const mockLocations: Location[] = [
 		{
 			id: "loc-1",
@@ -329,7 +329,7 @@ describe("IndexedDB Dexie Schema & Repository (P2.1)", () => {
 		expect(pendingCount).toBe(2);
 	});
 
-	describe("Task P5.1: Dexie Versioned Outbox Schema & Ring-Buffer Diagnostics", () => {
+	describe("Dexie Versioned Outbox Schema & Ring-Buffer Diagnostics", () => {
 		it("supports querying outbox using compound indices [employeeId+status], [itemId+status], and [status+createdAt]", async () => {
 			await db.outbox.bulkAdd([
 				{

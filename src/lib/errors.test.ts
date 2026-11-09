@@ -11,7 +11,7 @@ import {
 	mapApiError,
 } from "./errors";
 
-describe("Error Mapping & Classification Suite (Task P3.4)", () => {
+describe("Error Mapping & Classification Suite", () => {
 	describe("Human Friendly Error Messages", () => {
 		it("provides descriptive Indonesian messages for all enterprise error codes", () => {
 			for (const code of Object.values(ErrorCodes)) {

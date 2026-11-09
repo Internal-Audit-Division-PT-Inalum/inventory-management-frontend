@@ -69,7 +69,7 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
 };
 
 /**
- * Mengambil pesan kesalahan bahasa Indonesia yang ramah pengguna berdasarkan meta.code
+ * Retrieves human-readable Indonesian error message based on application error code.
  */
 export function getHumanErrorMessage(
 	code: string | undefined | null,
@@ -86,7 +86,7 @@ export function getHumanErrorMessage(
 }
 
 /**
- * Memeriksa apakah error merupakan AxiosError
+ * Type guard verifying whether an error is an Axios error.
  */
 export function isAxiosError(
 	error: unknown,
@@ -100,11 +100,10 @@ export function isAxiosError(
 }
 
 /**
- * Memetakan error HTTP / Axios / Runtime ke dalam struktur AppError terstandar.
- * Menjamin klasifikasi retry vs rejected untuk antrean outbox offline PWA.
+ * Maps raw HTTP, network, and runtime exceptions into structured AppError representations.
+ * Classifies transient (retryable) vs permanent (fatal) failures for PWA outbox sync.
  */
 export function mapApiError(error: unknown): AppError {
-	// 1. Non-Axios Error (Koneksi putus total, DOMException, atau error runtime)
 	if (!isAxiosError(error)) {
 		const message =
 			error instanceof Error && error.message
@@ -125,7 +124,6 @@ export function mapApiError(error: unknown): AppError {
 	const data = error.response?.data;
 	const backendCode = data?.meta?.code;
 
-	// 2. Offline / Jaringan Gagal / Timeout (Tidak ada respons server)
 	if (
 		!error.response ||
 		error.code === "ERR_NETWORK" ||
@@ -142,7 +140,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 3. Sesi Kedaluwarsa (401 Unauthorized / UNAUTHENTICATED)
 	if (status === 401 || backendCode === ErrorCodes.UNAUTHENTICATED) {
 		return {
 			kind: "auth",
@@ -151,12 +148,11 @@ export function mapApiError(error: unknown): AppError {
 			message:
 				data?.message || getHumanErrorMessage(ErrorCodes.UNAUTHENTICATED),
 			isRetryable: false,
-			isFatal: false, // Memerlukan login ulang, antrean outbox tidak dibuang melainkan di-pause
+			isFatal: false,
 			raw: error,
 		};
 	}
 
-	// 4. Konflik Idempotensi Transaksi (409 Conflict / IDEMPOTENCY_CONFLICT)
 	if (status === 409 || backendCode === ErrorCodes.IDEMPOTENCY_CONFLICT) {
 		return {
 			kind: "conflict",
@@ -170,7 +166,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 5. Rate Limiting (429 Too Many Requests)
 	if (status === 429 || backendCode === ErrorCodes.RATE_LIMIT_EXCEEDED) {
 		return {
 			kind: "retry",
@@ -184,7 +179,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 6. Validasi Input Form (422 dengan errors map)
 	if (status === 422 && data?.errors && Object.keys(data.errors).length > 0) {
 		const firstError = Object.values(data.errors)[0]?.[0];
 		return {
@@ -202,7 +196,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 7. 500+ Internal Server Error (Transient / Retryable)
 	if (status && status >= 500) {
 		return {
 			kind: "retry",
@@ -215,7 +208,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 8. Aturan Bisnis Domain Inventory (422 dengan meta.code spesifik)
 	if (backendCode && ERROR_MESSAGE_MAP[backendCode]) {
 		return {
 			kind: "rejected",
@@ -228,7 +220,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 9. 403 Forbidden / Hak Akses Ditolak
 	if (status === 403 || backendCode === ErrorCodes.FORBIDDEN) {
 		return {
 			kind: "rejected",
@@ -241,7 +232,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 10. 404 Not Found / Data Tidak Ditemukan
 	if (status === 404 || backendCode === ErrorCodes.ITEM_NOT_FOUND) {
 		return {
 			kind: "rejected",
@@ -254,7 +244,6 @@ export function mapApiError(error: unknown): AppError {
 		};
 	}
 
-	// 11. Fallback Umum Tak Terduga
 	return {
 		kind: "rejected",
 		code: backendCode || ErrorCodes.UNKNOWN_ERROR,
@@ -269,7 +258,7 @@ export function mapApiError(error: unknown): AppError {
 }
 
 /**
- * Predikat pembantu untuk mengecek apakah error dapat dicoba ulang (retryable)
+ * Predicate helper checking if an error is retryable.
  */
 export function isRetryableError(error: unknown): boolean {
 	const appError =
@@ -280,7 +269,7 @@ export function isRetryableError(error: unknown): boolean {
 }
 
 /**
- * Predikat pembantu untuk mengecek apakah error merupakan penolakan permanen (fatal)
+ * Predicate helper checking if an error is a permanent rejection (fatal).
  */
 export function isFatalError(error: unknown): boolean {
 	const appError =
@@ -291,7 +280,7 @@ export function isFatalError(error: unknown): boolean {
 }
 
 /**
- * Predikat pembantu untuk mengecek apakah error merupakan sesi habis (401)
+ * Predicate helper checking if an error represents an expired authentication session (401).
  */
 export function isAuthError(error: unknown): boolean {
 	const appError =
@@ -304,7 +293,7 @@ export function isAuthError(error: unknown): boolean {
 }
 
 /**
- * Predikat pembantu untuk mengecek apakah error merupakan konflik idempotensi (409)
+ * Predicate helper checking if an error represents an idempotency transaction conflict (409).
  */
 export function isConflictError(error: unknown): boolean {
 	const appError =
@@ -318,7 +307,7 @@ export function isConflictError(error: unknown): boolean {
 }
 
 /**
- * Predikat pembantu untuk mengecek apakah error merupakan stok habis/kurang
+ * Predicate helper checking if an error represents an insufficient inventory stock condition.
  */
 export function isStockError(error: unknown): boolean {
 	const appError =

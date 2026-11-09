@@ -1,7 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { InventoryItemType, Item, Location } from "@/types/api";
 
-// --- Schema Interface for Offline Outbox Transaction Queue ---
 export type OutboxOperation = "take" | "add" | "borrow" | "return";
 
 export type OutboxStatus =
@@ -33,7 +32,6 @@ export interface OutboxItem {
 	createdAt: string;
 }
 
-// --- Schema Interface for Local Diagnostic Logs (Ring Buffer) ---
 export type DiagnosticLogLevel = "debug" | "info" | "warn" | "error";
 
 export interface DiagnosticLog {
@@ -61,7 +59,10 @@ export interface CatalogQueryOptions {
 
 export const DB_NAME = "inventory_iia_pwa";
 
-// --- Dexie Database Class ---
+/**
+ * Client-side IndexedDB engine managing offline inventory catalog caches,
+ * transactional mutation outbox queues, and bounded diagnostic logging buffers.
+ */
 export class InventoryDatabase extends Dexie {
 	locations!: Table<Location, string>;
 	items!: Table<Item, string>;
@@ -80,13 +81,11 @@ export class InventoryDatabase extends Dexie {
 			outbox: "clientUuid, employeeId, operation, itemId, status, createdAt",
 		});
 
-		// Version 2: Indeks gabungan [location_id+type] untuk query filter cepat
 		this.version(2).stores({
 			items:
 				"id, sku, name, type, location_id, [location_id+type], current_stock, minimum_stock, updated_at",
 		});
 
-		// Version 3 (Task P5.1): Indeks gabungan outbox untuk FIFO & isolasi akun, serta tabel ring buffer diagnostik
 		this.version(3)
 			.stores({
 				outbox:
@@ -94,7 +93,6 @@ export class InventoryDatabase extends Dexie {
 				diagnostic_logs: "++id, timestamp, level, category, createdAt",
 			})
 			.upgrade(async (tx) => {
-				// Pastikan entri outbox lama memiliki default attempts, nextAttemptAt, dan lastError
 				await tx
 					.table<OutboxItem>("outbox")
 					.toCollection()
@@ -113,7 +111,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Ambil nilai metadata sinkronisasi berdasarkan kunci
+	 * Retrieves synchronization metadata by key.
 	 */
 	async getMeta(key: string): Promise<string | undefined> {
 		const entry = await this.meta.get(key);
@@ -121,7 +119,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Simpan nilai metadata sinkronisasi
+	 * Persists synchronization metadata key-value pair.
 	 */
 	async setMeta(key: string, value: string): Promise<void> {
 		await this.meta.put({
@@ -132,15 +130,15 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Hapus nilai metadata sinkronisasi berdasarkan kunci
+	 * Deletes synchronization metadata entry by key.
 	 */
 	async deleteMeta(key: string): Promise<void> {
 		await this.meta.delete(key);
 	}
 
 	/**
-	 * Atomic bulk upsert untuk katalog barang dan lokasi.
-	 * Jika daftar item diberikan, item lokal yang tidak ada di data baru akan dibersihkan.
+	 * Atomically synchronizes catalog items and physical rack locations.
+	 * Prunes obsolete local records not present in the incoming payload.
 	 */
 	async bulkUpsertCatalog(params: {
 		items: Item[];
@@ -159,16 +157,13 @@ export class InventoryDatabase extends Dexie {
 			"rw",
 			[this.items, this.locations, this.meta],
 			async () => {
-				// 1. Simpan / Perbarui Lokasi
 				if (locations && locations.length > 0) {
 					await this.locations.bulkPut(locations);
 				}
 
-				// 2. Simpan / Perbarui Item
 				if (items.length > 0) {
 					await this.items.bulkPut(items);
 
-					// Bersihkan item lokal yang sudah tidak aktif / dihapus di backend
 					const incomingIds = new Set(items.map((i) => i.id));
 					const allLocalIds = await this.items.toCollection().primaryKeys();
 					const obsoleteIds = allLocalIds.filter((id) => !incomingIds.has(id));
@@ -180,7 +175,6 @@ export class InventoryDatabase extends Dexie {
 					await this.items.clear();
 				}
 
-				// 3. Catat ETag dan Waktu Sinkronisasi
 				if (etag) {
 					await this.meta.put({
 						key: "catalog_etag",
@@ -199,14 +193,13 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Query katalog barang dengan filter multi-dimensi dan pencarian cepat.
+	 * Queries cached catalog items supporting multi-dimensional filtering and search.
 	 */
 	async getCatalogItems(options: CatalogQueryOptions = {}): Promise<Item[]> {
 		const { searchTerm, locationId, type, stockStatus } = options;
 
 		let collection = this.items.toCollection();
 
-		// Optimasi indeks kombinasi jika filter location & type ditentukan
 		if (locationId && type && type !== "all") {
 			collection = this.items
 				.where("[location_id+type]")
@@ -219,7 +212,6 @@ export class InventoryDatabase extends Dexie {
 
 		let results = await collection.toArray();
 
-		// Filter pencarian teks bebas (case-insensitive)
 		if (searchTerm && searchTerm.trim() !== "") {
 			const normalized = searchTerm.trim().toLowerCase();
 			results = results.filter(
@@ -229,7 +221,6 @@ export class InventoryDatabase extends Dexie {
 			);
 		}
 
-		// Filter status stok
 		if (stockStatus && stockStatus !== "all") {
 			if (stockStatus === "low_or_empty") {
 				results = results.filter(
@@ -244,7 +235,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Bersihkan data cache katalog tanpa menyentuh antrean outbox (Zero data loss).
+	 * Clears cached catalog data without affecting the offline outbox transaction queue.
 	 */
 	async clearCatalog(): Promise<void> {
 		await this.transaction(
@@ -260,8 +251,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Dapatkan jumlah antrean transaksi offline yang belum tersinkronisasi.
-	 * Mendukung filter employeeId dan opsi includeFailed (retryable).
+	 * Counts pending outbox items awaiting server synchronization.
 	 */
 	async getPendingOutboxCount(params?: {
 		employeeId?: string;
@@ -283,8 +273,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Ambil semua transaksi outbox yang sedang pending atau syncing (dan optionally failed).
-	 * Terisolasi per employeeId jika parameter diberikan.
+	 * Retrieves pending outbox transaction queue records.
 	 */
 	async getPendingOutboxItems(params?: {
 		employeeId?: string;
@@ -309,7 +298,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Reset item yang tertinggal dalam status 'syncing' saat aplikasi dibuka kembali (crash recovery).
+	 * Recovers stalled syncing items back to pending status following unexpected application restarts.
 	 */
 	async resetAbandonedSyncingItems(): Promise<number> {
 		return await this.outbox
@@ -319,7 +308,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Ambil entri outbox untuk item tertentu (berguna untuk FIFO per item dan kalkulasi delta stok).
+	 * Retrieves outbox transaction queue records targeting a specific item.
 	 */
 	async getOutboxItemsByItem(
 		itemId: string,
@@ -335,14 +324,14 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Simpan transaksi ke dalam antrean outbox secara atomik (Zero Data Loss).
+	 * Atomically enqueues an offline transaction record into the outbox.
 	 */
 	async enqueueOutboxItem(item: OutboxItem): Promise<void> {
 		await this.outbox.put(item);
 	}
 
 	/**
-	 * Perbarui status dan metadata entri outbox.
+	 * Updates outbox item status and metadata.
 	 */
 	async updateOutboxItem(
 		clientUuid: string,
@@ -352,7 +341,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Dapatkan entri outbox berdasarkan clientUuid.
+	 * Retrieves a single outbox record by clientUuid.
 	 */
 	async getOutboxItemByUuid(
 		clientUuid: string,
@@ -361,8 +350,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Ambil semua entri outbox terurut berdasarkan createdAt.
-	 * Mendukung filter status dan isolasi per employeeId.
+	 * Retrieves all outbox records ordered by creation timestamp with optional filtering.
 	 */
 	async getOutboxItems(
 		params?:
@@ -406,7 +394,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Menambahkan catatan log diagnostik lokal dengan pembatasan ring buffer (default 100 entri).
+	 * Appends a diagnostic log entry capped within a bounded ring buffer (default 100 entries).
 	 */
 	async addDiagnosticLog(
 		log: Omit<DiagnosticLog, "id">,
@@ -417,7 +405,6 @@ export class InventoryDatabase extends Dexie {
 			createdAt: log.createdAt ?? new Date().toISOString(),
 		});
 
-		// Enforce ring-buffer cap
 		const count = await this.diagnostic_logs.count();
 		if (count > maxEntries) {
 			const excess = count - maxEntries;
@@ -437,15 +424,14 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Mengambil jumlah total entri log diagnostik saat ini.
+	 * Returns the total count of diagnostic log records.
 	 */
 	async getDiagnosticLogCount(): Promise<number> {
 		return await this.diagnostic_logs.count();
 	}
 
 	/**
-	 * Mengambil entri log diagnostik terbaru terurut dari yang paling baru.
-	 * Mendukung overload angka (limit) atau objek opsi filter.
+	 * Retrieves diagnostic logs sorted descending by creation order.
 	 */
 	async getDiagnosticLogs(
 		params?:
@@ -474,7 +460,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Membersihkan seluruh log diagnostik.
+	 * Purges all diagnostic log records.
 	 */
 	async clearDiagnosticLogs(): Promise<void> {
 		await this.diagnostic_logs.clear();
@@ -488,7 +474,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Mengekspor seluruh log diagnostik menjadi teks yang mudah dibaca/disalin untuk tim IT.
+	 * Exports diagnostic log records as formatted plain text for technical troubleshooting.
 	 */
 	async exportDiagnosticLogsAsText(limit = 100): Promise<string> {
 		const logs = await this.getDiagnosticLogs(limit);
@@ -498,9 +484,9 @@ export class InventoryDatabase extends Dexie {
 
 		const header = [
 			"============================================================",
-			"   INVENTORY PWA - LOG DIAGNOSTIK SISTEM (PT INALUM)        ",
-			`   Diekspor Pada: ${new Date().toISOString()}                `,
-			`   Jumlah Entri: ${logs.length} entri                       `,
+			"   INVENTORY PWA - LOG DIAGNOSTIK SISTEM (PT INALUM)       ",
+			`   Tanggal Ekspor: ${new Date().toISOString()}                  `,
+			`   Jumlah Entri: ${logs.length} entri                           `,
 			"============================================================",
 			"",
 		].join("\n");
@@ -519,7 +505,7 @@ export class InventoryDatabase extends Dexie {
 	}
 
 	/**
-	 * Mengekspor seluruh log diagnostik dalam format JSON terstruktur lengkap dengan metadata sistem.
+	 * Exports diagnostic logs as structured JSON with execution environment metadata.
 	 */
 	async exportDiagnosticLogsAsJson(limit = 100): Promise<string> {
 		const logs = await this.getDiagnosticLogs(limit);

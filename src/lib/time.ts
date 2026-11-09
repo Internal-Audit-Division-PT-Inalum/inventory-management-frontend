@@ -1,28 +1,20 @@
-// ==============================================================================
-// TIME UTILITIES & SERVER CLOCK SKEW CORRECTION (Task P5.7)
-// Menjamin timestamp occurred_at transaksi offline/online selaras dengan jam server
-// ==============================================================================
-
 import { db } from "./db";
 
 export const SERVER_TIME_OFFSET_STORAGE_KEY = "inventory_server_time_offset_ms";
 export const SERVER_TIME_SYNCED_EVENT = "inventory:server-time-synced";
 
-/** Ambang batas perbedaan waktu perangkat vs server yang dianggap signifikan (60 detik) */
+/** Threshold in milliseconds considered a significant clock skew (60 seconds) */
 export const SIGNIFICANT_CLOCK_SKEW_THRESHOLD_MS = 60_000;
 
-/** Batas maksimal usia transaksi di masa lalu (30 hari sesuai Backend TransactItemRequest) */
+/** Maximum allowed transaction age in the past (30 days per backend validation) */
 export const TRANSACTION_MAX_PAST_DAYS = 30;
 
-/** Batas toleransi maksimal transaksi di masa depan (5 menit sesuai Backend TransactItemRequest) */
+/** Maximum allowed transaction timestamp ahead in the future (5 minutes per backend validation) */
 export const TRANSACTION_MAX_FUTURE_MINUTES = 5;
 
 export interface SetServerTimeOffsetOptions {
-	/** Waktu klien (Date.now()) saat permintaan HTTP dikirim ke server */
 	requestStartTime?: number;
-	/** Waktu klien (Date.now()) saat respons HTTP diterima dari server (default: Date.now()) */
 	responseTime?: number;
-	/** Melewati pencatatan log diagnostik (khusus untuk pengujian) */
 	skipDiagnosticLog?: boolean;
 }
 
@@ -54,7 +46,7 @@ function loadInitialServerOffset(): number {
 			}
 		}
 	} catch {
-		// Abaikan galat penyimpanan pada mode penyamaran/private
+		// Suppress storage access errors in private/sandboxed modes
 	}
 	return 0;
 }
@@ -62,8 +54,8 @@ function loadInitialServerOffset(): number {
 let serverTimeOffsetMs = loadInitialServerOffset();
 
 /**
- * Menghitung pergeseran waktu antara server dan klien dari header HTTP 'Date'.
- * Memperhitungkan kompensasi Network Round-Trip Time (RTT) untuk akurasi tingkat sub-detik.
+ * Calculates time offset between server and client from the HTTP 'Date' response header.
+ * Applies network round-trip time (RTT) compensation for sub-second synchronization.
  */
 export function calculateOffsetFromHeader(
 	serverDateHeader: string,
@@ -81,7 +73,6 @@ export function calculateOffsetFromHeader(
 		requestStartTime > 0 &&
 		requestStartTime <= responseTime
 	) {
-		// Kompensasi Network Latency (RTT): T_client_est = (T_req + T_res) / 2
 		clientReferenceTime = Math.round((requestStartTime + responseTime) / 2);
 	}
 
@@ -89,9 +80,8 @@ export function calculateOffsetFromHeader(
 }
 
 /**
- * Memperbarui offset pergeseran jam antara client dan server
- * berdasarkan header 'Date' dari respons HTTP server, serta
- * menyimpannya ke persistent storage (localStorage + Dexie db.meta).
+ * Updates the client-to-server clock skew offset from an HTTP Date header.
+ * Persists the offset to dual-layer storage (localStorage and Dexie db.meta).
  */
 export function setServerTimeOffset(
 	serverDateHeader: string | undefined,
@@ -105,7 +95,6 @@ export function setServerTimeOffset(
 	const previousOffset = serverTimeOffsetMs;
 	serverTimeOffsetMs = calculatedOffset;
 
-	// 1. Simpan ke localStorage untuk akses sinkron cepat saat boot
 	try {
 		if (typeof window !== "undefined" && window.localStorage) {
 			localStorage.setItem(
@@ -114,10 +103,9 @@ export function setServerTimeOffset(
 			);
 		}
 	} catch {
-		// Abaikan galat penyimpanan
+		// Suppress storage write errors
 	}
 
-	// 2. Simpan asinkron ke Dexie db.meta (Dual-layer persistence)
 	try {
 		db.meta
 			.put({
@@ -127,10 +115,9 @@ export function setServerTimeOffset(
 			})
 			.catch(() => {});
 	} catch {
-		// Abaikan jika database belum siap
+		// Suppress database transaction errors when unready
 	}
 
-	// 3. Deteksi apakah pergeseran jam signifikan (>= 60 detik)
 	const isSignificant =
 		Math.abs(serverTimeOffsetMs) >= SIGNIFICANT_CLOCK_SKEW_THRESHOLD_MS;
 	if (isSignificant && !options.skipDiagnosticLog) {
@@ -149,7 +136,6 @@ export function setServerTimeOffset(
 		}).catch(() => {});
 	}
 
-	// 4. Siarkan event global jika offset berubah signifikan (> 500ms)
 	if (
 		typeof window !== "undefined" &&
 		Math.abs(serverTimeOffsetMs - previousOffset) > 500
@@ -168,8 +154,7 @@ export function setServerTimeOffset(
 }
 
 /**
- * Inisialisasi asinkron offset jam server dari IndexedDB (db.meta)
- * jika localStorage belum terisi atau dibersihkan peramban.
+ * Asynchronously initializes server time offset from IndexedDB when localStorage is empty.
  */
 export async function initServerTimeOffset(): Promise<number> {
 	if (serverTimeOffsetMs !== 0) {
@@ -186,14 +171,14 @@ export async function initServerTimeOffset(): Promise<number> {
 			}
 		}
 	} catch {
-		// Abaikan galat database
+		// Suppress database lookup errors
 	}
 
 	return 0;
 }
 
 /**
- * Reset server time offset kembali ke 0 (biasanya untuk kebutuhan pengujian).
+ * Resets the in-memory and persistent server time offset back to zero.
  */
 export function resetServerTimeOffset(): void {
 	serverTimeOffsetMs = 0;
@@ -202,24 +187,24 @@ export function resetServerTimeOffset(): void {
 			localStorage.removeItem(SERVER_TIME_OFFSET_STORAGE_KEY);
 		}
 	} catch {
-		// Ignore
+		// Suppress
 	}
 	try {
 		db.meta.delete(SERVER_TIME_OFFSET_STORAGE_KEY).catch(() => {});
 	} catch {
-		// Ignore
+		// Suppress
 	}
 }
 
 /**
- * Mengambil nilai offset waktu server saat ini (dalam milidetik).
+ * Returns the current server time offset in milliseconds.
  */
 export function getServerTimeOffset(): number {
 	return serverTimeOffsetMs;
 }
 
 /**
- * Memeriksa apakah pergeseran waktu perangkat melebihi batas signifikansi.
+ * Checks whether device clock skew exceeds the specified significance threshold.
  */
 export function isClockSkewSignificant(
 	thresholdMs: number = SIGNIFICANT_CLOCK_SKEW_THRESHOLD_MS,
@@ -228,7 +213,7 @@ export function isClockSkewSignificant(
 }
 
 /**
- * Mengambil informasi diagnostik lengkap mengenai pergeseran waktu perangkat.
+ * Retrieves comprehensive diagnostic information regarding device clock skew.
  */
 export function getClockSkewInfo(): ClockSkewInfo {
 	const offsetSec = Math.round(serverTimeOffsetMs / 1000);
@@ -254,22 +239,22 @@ export function getClockSkewInfo(): ClockSkewInfo {
 }
 
 /**
- * Menghasilkan objek Date yang telah dikoreksi dengan offset server.
+ * Produces a Date instance adjusted with the current server time offset.
  */
 export function getCorrectedNow(): Date {
 	return new Date(Date.now() + serverTimeOffsetMs);
 }
 
 /**
- * Menghasilkan ISO-8601 string waktu saat ini yang telah dikoreksi dengan jam server.
+ * Generates an ISO-8601 string of current time adjusted with server clock offset.
  */
 export function getCorrectedIsoString(): string {
 	return getCorrectedNow().toISOString();
 }
 
 /**
- * Memvalidasi apakah timestamp berada di dalam jendela waktu yang dapat diterima backend
- * (Backend TransactItemRequest: >= 30 hari lalu dan <= +5 menit dari waktu server).
+ * Validates whether a transaction timestamp falls within acceptable backend windows
+ * (>= 30 days in the past and <= +5 minutes in the future).
  */
 export function isTimestampWithinAcceptableWindow(
 	isoString: string,
@@ -279,7 +264,7 @@ export function isTimestampWithinAcceptableWindow(
 }
 
 /**
- * Validasi mendalam timestamp occurred_at dengan pesan alasan yang terperinci.
+ * Detailed validation of transaction occurred_at timestamp with actionable error reasons.
  */
 export function validateOccurredAt(
 	occurredAtIso: string,
@@ -325,7 +310,7 @@ export function validateOccurredAt(
 }
 
 /**
- * Format tanggal ke standar Waktu Indonesia Barat (WIB).
+ * Formats date into Western Indonesia Time (WIB) representation.
  */
 export function formatWib(
 	dateInput: Date | string | null | undefined,
@@ -351,7 +336,7 @@ export function formatWib(
 }
 
 /**
- * Menghasilkan representasi waktu relatif (misal: "Baru saja", "5 menit lalu").
+ * Produces relative elapsed time representation (e.g., "Baru saja", "5 mnt lalu").
  */
 export function formatRelative(
 	dateInput: Date | string | null | undefined,

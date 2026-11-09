@@ -86,7 +86,7 @@ describe("Lib Utilities Unit Tests", () => {
 		expect(db.outbox).toBeDefined();
 	});
 
-	// P1.1 Tests: Bearer token resolution & safe 401 handling
+	// Bearer token resolution & safe 401 handling
 	it("resolves active auth token from custom getter and fallbacks", () => {
 		// Case 1: No token
 		expect(getActiveAuthToken()).toBeNull();

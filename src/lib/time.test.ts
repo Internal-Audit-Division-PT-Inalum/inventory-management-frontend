@@ -20,7 +20,7 @@ import {
 	validateOccurredAt,
 } from "./time";
 
-describe("Task P5.7: Server Clock Skew Correction & Time Utilities", () => {
+describe("Server Clock Skew Correction & Time Utilities", () => {
 	beforeEach(async () => {
 		localStorage.clear();
 		await db.meta.clear();

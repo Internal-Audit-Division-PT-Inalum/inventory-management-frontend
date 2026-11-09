@@ -3,13 +3,14 @@ import axios, {
 	type AxiosInstance,
 	type InternalAxiosRequestConfig,
 } from "axios";
+import { isValidSanctumToken, sanitizeAuthHeader } from "./security";
 import { setServerTimeOffset } from "./time";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
 /**
- * Event nama global saat sesi kedaluwarsa (HTTP 401).
- * Didengarkan oleh sync engine untuk menjeda (pause) antrean tanpa menghapus outbox.
+ * Global event dispatched when an authenticated session expires (HTTP 401).
+ * Observed by the synchronization engine to pause processing without clearing the outbox.
  */
 export const AUTH_EXPIRED_EVENT = "inventory:auth-expired";
 
@@ -22,7 +23,6 @@ export const api: AxiosInstance = axios.create({
 	},
 });
 
-// Pluggable token getter (mendukung pembacaan in-memory dari Zustand auth store)
 type TokenGetter = () => string | null;
 let customTokenGetter: TokenGetter | null = null;
 
@@ -30,7 +30,6 @@ export function setAuthTokenGetter(getter: TokenGetter | null): void {
 	customTokenGetter = getter;
 }
 
-// Callback type untuk penanganan 401 unauthenticated
 type UnauthorizedHandler = () => void;
 let onUnauthorizedCallback: UnauthorizedHandler | null = null;
 
@@ -41,31 +40,32 @@ export function setUnauthorizedHandler(
 }
 
 /**
- * Mengambil token autentikasi aktif.
- * 1. Menggunakan custom token getter (misal dari memory store Zustand).
- * 2. Fallback membaca dari localStorage ("inventory_token" atau persisted Zustand store).
+ * Retrieves the currently active authentication token:
+ * 1. Checks custom in-memory token getter (e.g., Zustand store).
+ * 2. Falls back to direct localStorage storage key.
+ * 3. Falls back to persisted Zustand auth store payload.
  */
 export function getActiveAuthToken(): string | null {
 	if (customTokenGetter) {
 		const token = customTokenGetter();
-		if (token) return token;
+		if (token && isValidSanctumToken(token)) return token.trim();
 	}
 
 	try {
-		// 1. Direct storage fallback
 		const directToken = localStorage.getItem("inventory_token");
-		if (directToken) return directToken;
+		if (directToken && isValidSanctumToken(directToken))
+			return directToken.trim();
 
-		// 2. Zustand persisted storage fallback
 		const persistedAuth = localStorage.getItem("inventory_auth_storage");
 		if (persistedAuth) {
 			const parsed = JSON.parse(persistedAuth);
-			if (parsed?.state?.token) {
-				return parsed.state.token;
+			const tokenCandidate = parsed?.state?.token;
+			if (tokenCandidate && isValidSanctumToken(tokenCandidate)) {
+				return tokenCandidate.trim();
 			}
 		}
 	} catch {
-		// Ignore parsing errors on invalid local storage
+		// Suppress parsing errors on malformed local storage
 	}
 
 	return null;
@@ -81,14 +81,14 @@ declare module "axios" {
 	}
 }
 
-// Request Interceptor: Inject Sanctum Bearer Token & Timestamp for RTT calculation
 api.interceptors.request.use(
 	(config: InternalAxiosRequestConfig) => {
 		config.metadata = { requestStartTime: Date.now() };
 
 		const token = getActiveAuthToken();
-		if (token && config.headers) {
-			config.headers.Authorization = `Bearer ${token}`;
+		const authHeader = sanitizeAuthHeader(token);
+		if (authHeader && config.headers) {
+			config.headers.Authorization = authHeader;
 		}
 		return config;
 	},
@@ -97,10 +97,8 @@ api.interceptors.request.use(
 	},
 );
 
-// Response Interceptor: Server Clock Skew Sync & Safe 401 Handling
 api.interceptors.response.use(
 	(response) => {
-		// Sinkronisasi pergeseran jam server dari header HTTP Date dengan kompensasi RTT
 		const serverDate = response.headers?.date;
 		if (serverDate) {
 			setServerTimeOffset(serverDate, {
@@ -111,7 +109,6 @@ api.interceptors.response.use(
 		return response;
 	},
 	(error: AxiosError) => {
-		// Sinkronisasi jam server bahkan saat respons error
 		if (error.response?.headers?.date) {
 			setServerTimeOffset(error.response.headers.date, {
 				requestStartTime: error.config?.metadata?.requestStartTime,
@@ -119,20 +116,15 @@ api.interceptors.response.use(
 			});
 		}
 
-		// Sesi kedaluwarsa (401 Unauthorized)
 		if (error.response?.status === 401) {
 			const requestUrl = error.config?.url || "";
 			const isLoginRequest = requestUrl.includes("/auth/login");
 
-			// Jika bukan request login itu sendiri, tandai sesi kedaluwarsa
 			if (!isLoginRequest) {
-				// 1. Eksekusi handler terdaftar (ubah status sesi di store jadi 'expired')
 				if (onUnauthorizedCallback) {
 					onUnauthorizedCallback();
 				}
 
-				// 2. Broadcast event global agar sync engine menjeda antrean
-				// PENTING: Antrean di IndexedDB TIDAK DIHAPUS, hanya dijeda (pause)
 				if (typeof window !== "undefined") {
 					window.dispatchEvent(
 						new CustomEvent(AUTH_EXPIRED_EVENT, {
