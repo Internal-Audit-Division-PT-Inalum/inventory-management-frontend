@@ -1,5 +1,6 @@
 import * as React from "react";
 import { type Location as RouterLocation, useLocation } from "react-router-dom";
+import { sanitizeRedirectPath } from "@/lib/security";
 
 export const POST_LOGIN_REDIRECT_KEY = "pwa_post_login_redirect";
 
@@ -112,12 +113,12 @@ export function getAndClearPostLoginRedirect(stateFrom?: unknown): string {
 		}
 	}
 
-	// Sanitasi: Jangan izinkan redirect kembali ke /login
+	// Sanitasi: Jangan izinkan redirect kembali ke /login atau ke domain eksternal (anti-Open Redirect)
 	if (!redirectUrl || redirectUrl.startsWith("/login")) {
 		return "/";
 	}
 
-	return redirectUrl;
+	return sanitizeRedirectPath(redirectUrl, "/");
 }
 
 /**

@@ -91,7 +91,7 @@ const mockItems: Item[] = [
 	},
 ];
 
-describe("Catalog Feature Full Integration Test (Task P2.9)", () => {
+describe("Catalog Feature Full Integration Suite", () => {
 	beforeEach(async () => {
 		sessionStorage.clear();
 		await db.clearCatalog();

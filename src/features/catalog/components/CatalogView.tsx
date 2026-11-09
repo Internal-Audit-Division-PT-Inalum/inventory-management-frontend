@@ -23,6 +23,7 @@ import {
 	useCatalogItems,
 } from "../hooks/useCatalogItems";
 import { useCatalogLocations } from "../hooks/useCatalogLocations";
+import { useCatalogSync } from "../hooks/useCatalogSync";
 import { useQrLanding } from "../lib/qrLanding";
 import { ItemCard, ItemCardSkeleton } from "./ItemCard";
 import { SyncStatusBar } from "./SyncStatusBar";
@@ -49,13 +50,9 @@ export interface CatalogViewProps {
 }
 
 /**
- * Tampilan Utama Katalog Barang Inventaris PT INALUM:
- * - Search bar instan (nama/SKU) < 100ms berbasis IndexedDB.
- * - Filter chip lokasi rak fisik secara horizontal scrollable.
- * - Filter tipe (Semua / Habis Pakai / Aset) & status stok (Semua / Tersedia / Menipis-Habis).
- * - Pengurutan cerdas (Nama A-Z, SKU, Stok Terendah, Stok Tertinggi).
- * - Deteksi QR landing fisik dengan auto-select lokasi rak & banner informasi.
- * - Indikator kesegaran data SyncStatusBar terintegrasi.
+ * Master catalog view for PT INALUM inventory management.
+ * Features sub-100ms IndexedDB search, horizontal physical rack filter chips,
+ * stock status sorting, QR code rack landing auto-selection, and integrated SyncStatusBar.
  */
 export function CatalogView({
 	className,
@@ -68,7 +65,11 @@ export function CatalogView({
 	const { locations, locationMap } = useCatalogLocations();
 	const { submitTransaction, isSubmitting } = useTransactionSubmit();
 
-	// State filter lokal
+	const { syncNow: syncCatalogOnline } = useCatalogSync({
+		autoSync: true,
+		syncOnMount: true,
+	});
+
 	const [searchQuery, setSearchQuery] = React.useState<string>("");
 	const [selectedLocationId, setSelectedLocationId] = React.useState<
 		string | undefined
@@ -77,7 +78,6 @@ export function CatalogView({
 	const [stockFilter, setStockFilter] =
 		React.useState<CatalogStockFilter>(initialStockFilter);
 
-	// Sinkronkan filter stok jika prop initialStockFilter berubah dari luar
 	React.useEffect(() => {
 		if (initialStockFilter) {
 			setStockFilter(initialStockFilter);
@@ -159,7 +159,12 @@ export function CatalogView({
 
 	return (
 		<div className={cn("flex flex-col gap-3.5", className)}>
-			<SyncStatusBar onSync={refetch} />
+			<SyncStatusBar
+				onSync={async () => {
+					await syncCatalogOnline();
+					await refetch();
+				}}
+			/>
 
 			{qr.isQrLanding && selectedLocationId && (
 				<div

@@ -8,7 +8,7 @@ import { getLocations } from "./api/getLocations";
 import { CATALOG_SYNC_EVENT, syncCatalog } from "./api/syncCatalog";
 import { useCatalogSync } from "./hooks/useCatalogSync";
 
-describe("Catalog Synchronization & ETag Engine (P2.2)", () => {
+describe("Catalog Synchronization & ETag Engine", () => {
 	const mockLocations: Location[] = [
 		{
 			id: "loc-1",

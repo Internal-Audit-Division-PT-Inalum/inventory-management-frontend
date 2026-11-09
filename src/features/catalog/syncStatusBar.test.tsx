@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SyncStatusBar } from "./components/SyncStatusBar";
 
-describe("SyncStatusBar Component (Task P2.5)", () => {
+describe("SyncStatusBar Component", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 	});

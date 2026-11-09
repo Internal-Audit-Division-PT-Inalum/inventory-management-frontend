@@ -7,7 +7,7 @@ import {
 	savePostLoginRedirect,
 } from "./lib/qrLanding";
 
-describe("QR Landing & Post-Login Redirection Engine (Task P2.8)", () => {
+describe("QR Landing & Post-Login Redirection Engine", () => {
 	beforeEach(() => {
 		sessionStorage.clear();
 	});

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Item } from "@/types/api";
 import { ItemCard, ItemCardSkeleton } from "./components/ItemCard";
 
-describe("ItemCard Component (Task P2.4)", () => {
+describe("ItemCard Component", () => {
 	const mockConsumable: Item = {
 		id: "item-c1",
 		sku: "ATK-KTS-A4",
@@ -151,7 +151,7 @@ describe("ItemCard Component (Task P2.4)", () => {
 		expect(container.querySelector(".animate-pulse")).toBeDefined();
 	});
 
-	// Task P5.8 Tests: Projected Stock UI
+	// Projected Stock UI tests
 	it("renders estimated stock badge and pending queue indicator when item has pending transactions", () => {
 		const projectedItem: Item = {
 			...mockConsumable,

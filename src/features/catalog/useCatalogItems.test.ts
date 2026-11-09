@@ -6,7 +6,7 @@ import { CATALOG_SYNC_EVENT } from "./api/syncCatalog";
 import { useCatalogItems } from "./hooks/useCatalogItems";
 import { useCatalogLocations } from "./hooks/useCatalogLocations";
 
-describe("Catalog Local Query & Filter Hooks (P2.3)", () => {
+describe("Catalog Local Query & Filter Hooks", () => {
 	const mockLocations: Location[] = [
 		{
 			id: "loc-b",
