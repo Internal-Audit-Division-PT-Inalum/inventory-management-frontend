@@ -52,7 +52,7 @@ export interface SyncEngineOptions {
 	bypassTabLock?: boolean;
 
 	/**
-	 * Otomatis menyelaraskan cache katalog IndexedDB dengan server setelah transaksi berhasil diunggah (Task P5.12).
+	 * Automatically aligns IndexedDB catalog cache with server following successful uploads.
 	 * Default: true.
 	 */
 	syncCatalogOnSuccess?: boolean;
@@ -80,7 +80,7 @@ export interface SyncEngineResult {
 	haltedByAuth?: boolean;
 	skippedDueToTabLock?: boolean;
 	/**
-	 * Hasil sinkronisasi katalog pasca-sync jika dieksekusi (Task P5.12).
+	 * Post-synchronization catalog refresh outcome if executed.
 	 */
 	catalogSyncResult?: CatalogSyncResult | null;
 }
@@ -310,9 +310,7 @@ async function executeSyncCycle(
 	// 1. Crash recovery: pulihkan transaksi yang tertinggal dalam status 'syncing'
 	await db.resetAbandonedSyncingItems();
 
-	// 2. Tentukan target employeeId secara defensif untuk penegakan isolasi antrean multi-akun (Task P5.11)
-	// Jika options.employeeId didefinisikan secara eksplisit, gunakan opsi tersebut.
-	// Jika tidak dispesifikasikan, gunakan ID akun pegawai aktif jika ada sesi login.
+	// 2. Resolve target employeeId for multi-account queue isolation
 	const authEmployeeId = useAuthStore.getState().employee?.id;
 	const resolvedEmployeeId =
 		options.employeeId !== undefined ? options.employeeId : authEmployeeId;
@@ -418,9 +416,7 @@ async function executeSyncCycle(
 
 	const durationMs = Date.now() - startTime;
 
-	// 7. Sinkronisasi katalog pasca-sync (Task P5.12):
-	// Jika terdapat transaksi yang berhasil diunggah ke backend (syncedCount > 0),
-	// segarkan katalog lokal IndexedDB dari backend agar stok riil dan ETag selalu sinkron.
+	// Post-sync catalog refresh
 	let catalogSyncResult: CatalogSyncResult | null = null;
 	const shouldSyncCatalog = options.syncCatalogOnSuccess ?? true;
 
@@ -459,9 +455,7 @@ async function executeSyncCycle(
 		}
 	}
 
-	// Jaminan emisi event CATALOG_SYNC_EVENT (Task P5.12):
-	// Jika syncCatalog tidak dijalankan (opsi false) atau tidak memancarkan event karena offline/error,
-	// tetap pancarkan event agar komponen UI lokal dapat merefleksikan perubahan status outbox.
+	// Ensure CATALOG_SYNC_EVENT emission for local UI state updates
 	if (
 		syncedCount > 0 &&
 		typeof window !== "undefined" &&

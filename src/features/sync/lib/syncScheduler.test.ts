@@ -32,7 +32,7 @@ async function waitFor(
 	}
 }
 
-describe("SyncScheduler: All 5 Sync Triggers (Task P5.5)", () => {
+describe("SyncScheduler: All 5 Sync Triggers", () => {
 	const mockItem: Item = {
 		id: "item-sch-1",
 		sku: "SKU-SCH",

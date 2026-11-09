@@ -12,7 +12,7 @@ import { classifySyncResponse } from "./responseClassifier";
 import { runSyncEngine } from "./syncEngine";
 import { SYNC_PAUSE_EVENT, syncPauseController } from "./syncPauseController";
 
-describe("Response Classification, Exponential Backoff & Auth Pause (Task P5.4)", () => {
+describe("Response Classification, Exponential Backoff & Auth Pause", () => {
 	const mockItem: Item = {
 		id: "item-p54-1",
 		sku: "SKU-P54",

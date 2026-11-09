@@ -44,7 +44,7 @@ function TestHookComponent() {
 	);
 }
 
-describe("PWA Install & Persistent Storage Suite (Task P2.7)", () => {
+describe("PWA Install & Persistent Storage Suite", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		vi.restoreAllMocks();

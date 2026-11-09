@@ -271,7 +271,7 @@ export function OutboxQueueView({
 			{/* Banner Peringatan Antrean Tua & iOS WebKit Eviction Guard */}
 			<IosQueueWarningBanner onSyncNow={handleSyncAll} />
 
-			{/* Banner Isolasi Akun Multi-Pegawai (Task P5.11) */}
+			{/* Multi-Account Queue Isolation Banner */}
 			{otherEmployeesPendingCount > 0 && (
 				<div
 					data-testid="other-employees-queue-banner"
@@ -490,7 +490,7 @@ export function OutboxQueueView({
 				isDeleting={isDiscarding}
 			/>
 
-			{/* Dialog Log Diagnostik Ring-Buffer & Ekspor (Task P5.13) */}
+			{/* Diagnostic Ring-Buffer Dialog */}
 			<DiagnosticLogDialog
 				open={isDiagnosticOpen}
 				onOpenChange={setIsDiagnosticOpen}

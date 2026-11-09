@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { OutboxItem } from "@/lib/db";
 import { calculateOutboxAging, IOS_EVICTION_MAX_DAYS } from "./outboxAging";
 
-describe("Outbox Aging & iOS Warning Calculation Engine (Task P5.10)", () => {
+describe("Outbox Aging & iOS Warning Calculation Engine", () => {
 	const fixedNow = new Date("2026-10-28T12:00:00Z");
 
 	function createMockItem(

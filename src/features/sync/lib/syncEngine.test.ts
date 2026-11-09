@@ -69,7 +69,7 @@ function createMockAuthError(entry: OutboxItem): TransactSubmitResult {
 	};
 }
 
-describe("Sync Engine: FIFO per item & Low Concurrency (Task P5.3)", () => {
+describe("Sync Engine: FIFO per item & Low Concurrency", () => {
 	const mockItemA: Item = {
 		id: "item-sync-A",
 		sku: "SKU-A",
@@ -557,7 +557,7 @@ describe("Sync Engine: FIFO per item & Low Concurrency (Task P5.3)", () => {
 		});
 	});
 
-	describe("Cross-Tab Lock Protection (Task P5.6)", () => {
+	describe("Cross-Tab Lock Protection", () => {
 		it("skips sync cycle with skippedDueToTabLock=true when another tab holds the lock", async () => {
 			// Simulasikan tab lain sedang memegang lock sinkronisasi
 			const otherTabLock: FallbackLockRecord = {

@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import * as diagnosticsLib from "../lib/diagnostics";
 import { DiagnosticLogDialog } from "./DiagnosticLogDialog";
 
-describe("DiagnosticLogDialog Component Suite (Task P5.13)", () => {
+describe("DiagnosticLogDialog Component Suite", () => {
 	const onOpenChangeMock = vi.fn();
 
 	beforeEach(async () => {

@@ -12,7 +12,7 @@ import {
 	recordDiagnosticLog,
 } from "./diagnostics";
 
-describe("Diagnostics Module & Ring-Buffer Suite (Task P5.13)", () => {
+describe("Diagnostics Module & Ring-Buffer Suite", () => {
 	beforeEach(async () => {
 		await db.diagnostic_logs.clear();
 		vi.clearAllMocks();

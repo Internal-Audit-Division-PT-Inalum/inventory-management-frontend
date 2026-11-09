@@ -7,7 +7,7 @@ import { AGING_WARNING_DISMISSED_KEY } from "../hooks/useOutboxAgingWarning";
 import type { OutboxAgingInfo } from "../lib/outboxAging";
 import { IosQueueWarningBanner } from "./IosQueueWarningBanner";
 
-describe("IosQueueWarningBanner Component & Guide Modal Suite (Task P5.10)", () => {
+describe("IosQueueWarningBanner Component & Guide Modal Suite", () => {
 	beforeEach(async () => {
 		localStorage.clear();
 		await db.outbox.clear();

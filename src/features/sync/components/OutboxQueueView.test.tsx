@@ -8,7 +8,7 @@ import { db, type OutboxItem } from "@/lib/db";
 import type { Item } from "@/types/api";
 import { OutboxQueueView } from "./OutboxQueueView";
 
-describe("OutboxQueueView Component & Actions Suite (Task P5.9)", () => {
+describe("OutboxQueueView Component & Actions Suite", () => {
 	const mockItemA: Item = {
 		id: "item-001",
 		sku: "SKU-001",

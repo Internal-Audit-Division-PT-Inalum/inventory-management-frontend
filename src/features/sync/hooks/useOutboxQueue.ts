@@ -71,12 +71,11 @@ export interface UseOutboxQueueResult {
 }
 
 /**
- * Hook reaktif terpadu untuk mengelola Layar Antrian Outbox Offline:
- * - Mengambil seluruh entri outbox dari IndexedDB dan memperkaya informasi barang dari katalog lokal.
- * - Menegakkan isolasi antrean per employeeId (Task P5.11) secara otomatis.
- * - Menghitung ringkasan status antrean (Total, Menunggu, Perlu Tindakan, Tersinkron).
- * - Menghitung jumlah transaksi offline milik akun lain yang tersimpan aman di perangkat.
- * - Mendukung penyaringan per tab dan per scope akun.
+ * Reactive hook managing offline outbox transaction queues:
+ * - Queries and enriches outbox entries from IndexedDB with local catalog item metadata.
+ * - Automatically enforces multi-account queue isolation per employeeId.
+ * - Computes real-time status metrics (Total, Pending, Needs Action, Synced).
+ * - Tracks un-synced offline records created by other accounts on the shared device.
  */
 export function useOutboxQueue(
 	options: UseOutboxQueueOptions = {},
@@ -120,7 +119,7 @@ export function useOutboxQueue(
 				}
 			}
 
-			// 3. Terapkan filter scope/employeeId (Task P5.11 Isolasi Akun)
+			// Apply account isolation scope filter
 			let rawItems = rawAllItems;
 			if (scope === "current_employee" && employeeId) {
 				rawItems = rawAllItems.filter((i) => i.employeeId === employeeId);

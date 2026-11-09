@@ -47,7 +47,7 @@ afterAll(() => {
 	server.close();
 });
 
-describe("Task P5.14: 7 Skenario Wajib Sync Engine (MSW + Fake-IndexedDB)", () => {
+describe("Mandatory Sync Engine Scenarios (MSW + Fake-IndexedDB)", () => {
 	const defaultConsumable: Item = {
 		id: "item-consumable-1",
 		sku: "SKU-KRT-A4",

@@ -9,7 +9,7 @@ import type { Item } from "@/types/api";
 import { runSyncEngine } from "./syncEngine";
 import { syncPauseController } from "./syncPauseController";
 
-describe("Post-Sync Catalog Refresh Suite (Task P5.12)", () => {
+describe("Post-Sync Catalog Refresh Suite", () => {
 	const mockItem: Item = {
 		id: "item-p512-1",
 		sku: "SKU-POST-SYNC",
