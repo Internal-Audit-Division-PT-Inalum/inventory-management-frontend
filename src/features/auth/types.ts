@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 /**
- * Skema validasi login pegawai PT Inalum
- * - namecode: Huruf/angka inisial unik pegawai (misal: MHS, RDT), panjang 2-10 karakter.
- * - pin: Tepat 6 digit angka numerik.
+ * Validation schema for PT INALUM employee authentication:
+ * - namecode: Alphanumeric employee initial code (2-10 characters).
+ * - pin: Exactly 6 numeric digits.
  */
 export const loginSchema = z.object({
 	namecode: z
@@ -28,9 +28,7 @@ export interface LoginCredentials {
 const WEAK_PINS = new Set(["000000", "123456", "111111", "654321", "123123"]);
 
 /**
- * Validasi apakah PIN termasuk kategori lemah:
- * 1. Angka berulang seluruhnya (misal: 111111, 222222, dll).
- * 2. Daftar kombinasi umum yang mudah ditebak (WEAK_PINS).
+ * Validates whether a candidate PIN matches common weak or repeating patterns.
  */
 export function isWeakPin(pin: string): boolean {
 	if (/^(.)\1{5}$/.test(pin)) {
@@ -40,10 +38,9 @@ export function isWeakPin(pin: string): boolean {
 }
 
 /**
- * Skema validasi pengubahan PIN keamanan pegawai.
- * - current_pin: Tepat 6 digit angka numerik.
- * - new_pin: Tepat 6 digit angka numerik, tidak boleh sama dengan PIN saat ini, dan tidak boleh lemah.
- * - new_pin_confirmation: Harus identik dengan new_pin.
+ * Validation schema for employee security PIN modification:
+ * Enforces 6 numeric digits, prevents reuse of current PIN, rejects weak patterns,
+ * and confirms matching confirmation entry.
  */
 export const changePinSchema = z
 	.object({

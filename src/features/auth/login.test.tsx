@@ -40,7 +40,7 @@ function renderWithProviders(ui: React.ReactElement) {
 	);
 }
 
-describe("Auth Login Feature (Task P1.3) Tests", () => {
+describe("Auth Login Feature Suite", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		useAuthStore.setState({

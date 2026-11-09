@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./store/authStore";
 
-describe("ProtectedRoute Guard (Task P1.5) Unit Tests", () => {
+describe("ProtectedRoute Guard Suite", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		useAuthStore.setState({

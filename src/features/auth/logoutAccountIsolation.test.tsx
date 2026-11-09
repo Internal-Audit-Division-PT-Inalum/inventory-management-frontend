@@ -51,7 +51,7 @@ function TestLogoutIsolationComponent() {
 	);
 }
 
-describe("Account Isolation & Final Logout Flow Suite (Task P5.11)", () => {
+describe("Account Isolation & Final Logout Flow Suite", () => {
 	const mockItem: Item = {
 		id: "item-iso-1",
 		sku: "SKU-ISO-1",

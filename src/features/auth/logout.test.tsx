@@ -50,7 +50,7 @@ function TestLogoutComponent() {
 	);
 }
 
-describe("Logout with Outbox Warning (Task P1.6) Tests", () => {
+describe("Logout with Outbox Warning Feature Suite", () => {
 	beforeEach(async () => {
 		localStorage.clear();
 		await db.outbox.clear();

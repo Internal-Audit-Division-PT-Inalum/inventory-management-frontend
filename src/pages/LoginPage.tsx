@@ -78,6 +78,8 @@ export function LoginPage() {
 					<img
 						src="/inalum-logo.png"
 						alt="Logo PT INALUM"
+						width={48}
+						height={48}
 						className="h-full w-full object-contain"
 					/>
 				</div>

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { syncPauseController } from "@/features/sync/lib/syncPauseController";
 import { setAuthTokenGetter, setUnauthorizedHandler } from "@/lib/api";
+import { clearSensitiveStorage, isValidSanctumToken } from "@/lib/security";
 import type { AuthSession, Employee } from "@/types/api";
 
 export type AuthStatus =
@@ -16,7 +17,6 @@ export interface AuthState {
 	mustChangePin: boolean;
 	status: AuthStatus;
 
-	// Actions
 	setSession: (session: AuthSession) => void;
 	setMustChangePin: (mustChange: boolean) => void;
 	updateEmployee: (employee: Partial<Employee>) => void;
@@ -35,20 +35,26 @@ export const useAuthStore = create<AuthState>()(
 			status: "idle",
 
 			setSession: (session: AuthSession) => {
+				const validToken = isValidSanctumToken(session.token)
+					? session.token.trim()
+					: null;
+
 				set({
-					token: session.token,
+					token: validToken,
 					employee: session.employee,
 					mustChangePin:
 						session.must_change_pin ??
 						session.employee.must_change_pin ??
 						false,
-					status: "authenticated",
+					status: validToken ? "authenticated" : "unauthenticated",
 				});
-				syncPauseController.resume();
-				try {
-					localStorage.setItem("inventory_token", session.token);
-				} catch {
-					// Safe fallback jika storage diblokir
+				if (validToken) {
+					syncPauseController.resume();
+					try {
+						localStorage.setItem("inventory_token", validToken);
+					} catch {
+						// Suppress storage access errors
+					}
 				}
 			},
 
@@ -70,8 +76,6 @@ export const useAuthStore = create<AuthState>()(
 			},
 
 			expireSession: () => {
-				// Saat sesi kedaluwarsa (401), status dialihkan ke 'expired'
-				// Token dikosongkan tetapi data pegawai tetap dipertahankan untuk UX login cepat
 				set({
 					token: null,
 					status: "expired",
@@ -80,23 +84,18 @@ export const useAuthStore = create<AuthState>()(
 				try {
 					localStorage.removeItem("inventory_token");
 				} catch {
-					// Safe fallback
+					// Suppress storage removal errors
 				}
 			},
 
 			logout: () => {
-				// Logout penuh: bersihkan seluruh sesi dan kredensial
 				set({
 					token: null,
 					employee: null,
 					mustChangePin: false,
 					status: "unauthenticated",
 				});
-				try {
-					localStorage.removeItem("inventory_token");
-				} catch {
-					// Safe fallback
-				}
+				clearSensitiveStorage();
 			},
 		}),
 		{
@@ -123,13 +122,11 @@ export const useAuthStore = create<AuthState>()(
 	),
 );
 
-// Daftarkan memory token getter dan 401 callback ke Axios client
 setAuthTokenGetter(() => useAuthStore.getState().token);
 setUnauthorizedHandler(() => {
 	useAuthStore.getState().expireSession();
 });
 
-// Selectors
 export const selectIsAuthenticated = (state: AuthState): boolean =>
 	state.status === "authenticated" && Boolean(state.token);
 

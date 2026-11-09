@@ -46,7 +46,7 @@ function renderFullAuthApp(initialEntry = "/") {
 	);
 }
 
-describe("Fase P1: Full Employee Authentication Lifecycle Integration Test", () => {
+describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 	beforeEach(async () => {
 		localStorage.clear();
 		await db.outbox.clear();

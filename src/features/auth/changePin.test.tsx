@@ -29,7 +29,7 @@ function renderWithProviders(ui: React.ReactElement) {
 	);
 }
 
-describe("Change PIN Feature (Task P1.4) Tests", () => {
+describe("Change PIN Feature Suite", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		useAuthStore.setState({
