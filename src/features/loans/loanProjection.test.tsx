@@ -29,7 +29,7 @@ function TestHookComponent() {
 	);
 }
 
-describe("Task P4.4: Loan Projection UI & Integration Suite", () => {
+describe("Loan Projection UI & Integration Suite", () => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: { retry: false, gcTime: 0 },

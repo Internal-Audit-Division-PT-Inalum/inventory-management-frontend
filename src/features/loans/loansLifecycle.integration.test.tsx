@@ -7,7 +7,7 @@ import { LoansPage } from "@/pages/LoansPage";
 import { LoanList } from "./components/LoanList";
 import type { AssetLoan } from "./types";
 
-describe("Task P4.5: Full Asset Loans Lifecycle & Empty State Integration Suite", () => {
+describe("Full Asset Loans Lifecycle & Empty State Integration Suite", () => {
 	let queryClient: QueryClient;
 
 	beforeEach(async () => {

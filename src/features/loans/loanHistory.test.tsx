@@ -25,7 +25,7 @@ function renderWithQueryClient(ui: React.ReactElement) {
 	);
 }
 
-describe("Task P4.3: Loan History & Return Timeline Feature Suite", () => {
+describe("Loan History & Return Timeline Feature Suite", () => {
 	const mockReturns: AssetLoanReturn[] = [
 		{
 			id: "ret-1",

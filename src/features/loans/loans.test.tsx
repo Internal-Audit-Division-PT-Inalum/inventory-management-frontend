@@ -28,7 +28,7 @@ function createTestQueryClient() {
 	});
 }
 
-describe("Task P4.1: Asset Loans Feature Suite", () => {
+describe("Asset Loans Feature Suite", () => {
 	const mockOpenLoan: AssetLoan = {
 		id: "loan-01",
 		item_id: "item-asset-01",

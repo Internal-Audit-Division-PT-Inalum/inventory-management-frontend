@@ -43,8 +43,8 @@ export interface LoansApiResponse {
 }
 
 /**
- * Entitas pinjaman dengan proyeksi sisa lokal (Task P4.4).
- * Mengurangi sisa pinjaman secara proaktif jika terdapat transaksi return di outbox Dexie yang masih pending.
+ * Loan entity augmented with client-side projected balances.
+ * Optimistically calculates remaining outstanding balances against pending outbox return mutations.
  */
 export interface ProjectedAssetLoan extends AssetLoan {
 	server_outstanding_quantity: number;

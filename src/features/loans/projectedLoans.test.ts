@@ -6,7 +6,7 @@ import {
 } from "./lib/projectedLoans";
 import type { AssetLoan } from "./types";
 
-describe("Task P4.4: calculateProjectedLoans Pure Engine Suite", () => {
+describe("calculateProjectedLoans Pure Engine Suite", () => {
 	const mockBaseLoans: AssetLoan[] = [
 		{
 			id: "loan-1",

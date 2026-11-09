@@ -27,7 +27,7 @@ function renderWithQueryClient(ui: React.ReactElement) {
 	);
 }
 
-describe("Task P4.2: Partial & Full Loan Return Engine Suite", () => {
+describe("Partial & Full Loan Return Engine Suite", () => {
 	const mockLoan: AssetLoan = {
 		id: "loan-active-1",
 		item_id: "item-asset-01",
