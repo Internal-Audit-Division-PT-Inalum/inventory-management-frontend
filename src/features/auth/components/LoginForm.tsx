@@ -114,12 +114,14 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 					<Input
 						id="login-namecode"
 						type="text"
+						inputMode="numeric"
+						pattern="[0-9]*"
 						autoComplete="username"
 						autoCapitalize="characters"
 						autoCorrect="off"
 						spellCheck={false}
 						maxLength={10}
-						placeholder="Misal: MHS"
+						placeholder="Contoh: 102934"
 						error={Boolean(errors.namecode)}
 						className="pl-10 font-mono tracking-wider uppercase placeholder:normal-case placeholder:font-sans placeholder:tracking-normal"
 						{...register("namecode", {
@@ -141,7 +143,7 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 					</p>
 				) : (
 					<p className="text-[11px] text-slate-500">
-						Inisial 2–10 karakter huruf/angka pegawai Anda.
+						Masukkan nomor identitas angka pegawai PT INALUM.
 					</p>
 				)}
 			</div>
