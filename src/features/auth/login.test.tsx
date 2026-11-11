@@ -83,9 +83,12 @@ describe("Auth Login Feature Suite", () => {
 		it("renders namecode input, pin input, and submit button", () => {
 			renderWithProviders(<LoginForm />);
 
-			expect(
-				screen.getByRole("textbox", { name: /namecode pegawai/i }),
-			).toBeDefined();
+			const namecodeInput = screen.getByRole("textbox", {
+				name: /namecode pegawai/i,
+			});
+			expect(namecodeInput).toBeDefined();
+			expect(namecodeInput.getAttribute("inputmode")).toBe("numeric");
+			expect(namecodeInput.getAttribute("pattern")).toBe("[0-9]*");
 			expect(screen.getByLabelText(/6-digit pin/i)).toBeDefined();
 			expect(
 				screen.getByRole("button", { name: /masuk ke sistem/i }),
