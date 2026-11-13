@@ -1,13 +1,42 @@
+import { lazy, type ReactNode, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { MustChangePinRoute } from "@/features/auth/components/MustChangePinRoute";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
-import { ChangePinPage } from "@/pages/ChangePinPage";
-import { HomePage } from "@/pages/HomePage";
-import { LoansPage } from "@/pages/LoansPage";
-import { LoginPage } from "@/pages/LoginPage";
-import { OutboxPage } from "@/pages/OutboxPage";
-import { ProfilePage } from "@/pages/ProfilePage";
+
+const LoginPage = lazy(() =>
+	import("@/pages/LoginPage").then((m) => ({ default: m.LoginPage })),
+);
+const ChangePinPage = lazy(() =>
+	import("@/pages/ChangePinPage").then((m) => ({ default: m.ChangePinPage })),
+);
+const HomePage = lazy(() =>
+	import("@/pages/HomePage").then((m) => ({ default: m.HomePage })),
+);
+const LoansPage = lazy(() =>
+	import("@/pages/LoansPage").then((m) => ({ default: m.LoansPage })),
+);
+const OutboxPage = lazy(() =>
+	import("@/pages/OutboxPage").then((m) => ({ default: m.OutboxPage })),
+);
+const ProfilePage = lazy(() =>
+	import("@/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })),
+);
+
+function RouteLoadingFallback() {
+	return (
+		<output
+			aria-label="Memuat halaman"
+			className="flex min-h-[50vh] items-center justify-center p-6"
+		>
+			<div className="h-7 w-7 animate-spin rounded-full border-2 border-[#004785]/20 border-t-[#004785]" />
+		</output>
+	);
+}
+
+function withSuspense(element: ReactNode): ReactNode {
+	return <Suspense fallback={<RouteLoadingFallback />}>{element}</Suspense>;
+}
 
 /**
  * Konfigurasi router utama aplikasi Mobile PWA Inventaris PT INALUM:
@@ -23,14 +52,14 @@ import { ProfilePage } from "@/pages/ProfilePage";
 export const router = createBrowserRouter([
 	{
 		path: "/login",
-		element: <LoginPage />,
+		element: withSuspense(<LoginPage />),
 	},
 	{
 		element: <MustChangePinRoute />,
 		children: [
 			{
 				path: "/change-pin",
-				element: <ChangePinPage />,
+				element: withSuspense(<ChangePinPage />),
 			},
 		],
 	},
@@ -42,19 +71,19 @@ export const router = createBrowserRouter([
 				children: [
 					{
 						path: "/",
-						element: <HomePage />,
+						element: withSuspense(<HomePage />),
 					},
 					{
 						path: "/loans",
-						element: <LoansPage />,
+						element: withSuspense(<LoansPage />),
 					},
 					{
 						path: "/outbox",
-						element: <OutboxPage />,
+						element: withSuspense(<OutboxPage />),
 					},
 					{
 						path: "/profile",
-						element: <ProfilePage />,
+						element: withSuspense(<ProfilePage />),
 					},
 				],
 			},

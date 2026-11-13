@@ -24,7 +24,7 @@ describe("App Root Component Smoke Test", () => {
 		});
 	});
 
-	it("renders the inventory system header with Inalum brand", () => {
+	it("renders the inventory system header with Inalum brand", async () => {
 		render(
 			<AppProviders>
 				<App />
@@ -33,6 +33,9 @@ describe("App Root Component Smoke Test", () => {
 		expect(screen.getByText("INVENTORY SYSTEM")).toBeDefined();
 		expect(screen.getByText("Internal Audit PT INALUM")).toBeDefined();
 		expect(screen.getAllByText("Online").length).toBeGreaterThanOrEqual(1);
+		expect(
+			await screen.findByText("Total Barang", {}, { timeout: 5000 }),
+		).toBeDefined();
 	});
 
 	it("renders the monitoring dashboard overview on home page", async () => {
@@ -41,13 +44,16 @@ describe("App Root Component Smoke Test", () => {
 				<App />
 			</AppProviders>,
 		);
-		await waitFor(() => {
-			expect(screen.getByText("Total Barang")).toBeDefined();
-		});
+		await waitFor(
+			() => {
+				expect(screen.getByText("Total Barang")).toBeDefined();
+			},
+			{ timeout: 5000 },
+		);
 		expect(screen.getByText("Peringatan Stok Kritis")).toBeDefined();
 	});
 
-	it("redirects unauthenticated users to login page", () => {
+	it("redirects unauthenticated users to login page", async () => {
 		useAuthStore.setState({
 			token: null,
 			employee: null,
@@ -61,7 +67,9 @@ describe("App Root Component Smoke Test", () => {
 			</AppProviders>,
 		);
 
-		expect(screen.getByText("Masuk Pegawai")).toBeDefined();
+		expect(
+			await screen.findByText("Masuk Pegawai", {}, { timeout: 5000 }),
+		).toBeDefined();
 		expect(screen.getByText("Divisi Internal Audit")).toBeDefined();
 	});
 });
