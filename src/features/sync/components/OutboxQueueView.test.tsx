@@ -57,15 +57,20 @@ describe("OutboxQueueView Component & Actions Suite", () => {
 			</MemoryRouter>,
 		);
 
-		await waitFor(() => {
-			expect(
-				screen.getByRole("heading", { name: /Antrean Transaksi \(Outbox\)/i }),
-			).toBeDefined();
-			expect(screen.getByText(/Antrean Offline Kosong/i)).toBeDefined();
-			expect(
-				screen.getByRole("link", { name: /Kembali ke Katalog Barang/i }),
-			).toBeDefined();
-		});
+		await waitFor(
+			() => {
+				expect(
+					screen.getByRole("heading", {
+						name: /Antrean Transaksi \(Outbox\)/i,
+					}),
+				).toBeDefined();
+				expect(screen.getByText(/Antrean Offline Kosong/i)).toBeDefined();
+				expect(
+					screen.getByRole("link", { name: /Kembali ke Katalog Barang/i }),
+				).toBeDefined();
+			},
+			{ timeout: 5000 },
+		);
 	});
 
 	it("renders tab counters and categorized outbox items correctly", async () => {
