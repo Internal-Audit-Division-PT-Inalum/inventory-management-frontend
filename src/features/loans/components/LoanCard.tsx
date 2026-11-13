@@ -13,7 +13,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, resolveMediaUrl } from "@/lib/utils";
 import type { AssetLoan, ProjectedAssetLoan } from "../types";
 import { LoanReturnTimeline } from "./LoanReturnTimeline";
 
@@ -94,6 +94,7 @@ export function LoanCard({ loan, onReturnClick, className }: LoanCardProps) {
 
 	const itemName = loan.item_name || loan.item?.name || "Barang Aset";
 	const itemSku = loan.item_sku || loan.item?.sku || "SKU-AST";
+	const resolvedImageUrl = resolveMediaUrl(loan.image_thumb_url);
 	const timeAgo = formatTimeAgo(loan.borrowed_at);
 	const hasReturnHistory = Boolean(loan.returns && loan.returns.length > 0);
 
@@ -110,9 +111,9 @@ export function LoanCard({ loan, onReturnClick, className }: LoanCardProps) {
 			<CardContent className="p-4 sm:p-5">
 				<div className="flex items-start gap-3.5">
 					<div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100/80 shadow-2xs">
-						{loan.image_thumb_url && !imageError ? (
+						{resolvedImageUrl && !imageError ? (
 							<img
-								src={loan.image_thumb_url}
+								src={resolvedImageUrl}
 								alt={itemName}
 								className="h-full w-full object-cover"
 								onError={() => setImageError(true)}

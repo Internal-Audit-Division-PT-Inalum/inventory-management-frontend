@@ -1,9 +1,93 @@
 /**
  * Security and sanitization utilities:
  * - Laravel Sanctum authentication token validation and header injection mitigation
+ * - External & relative URL protocol sanitization (XSS / Open Redirect prevention)
  * - Post-login redirect path sanitization (Open Redirect prevention)
  * - Safe session and sensitive storage disposal
  */
+
+export interface SanitizeUrlOptions {
+	allowRelative?: boolean;
+}
+
+/**
+ * Validates and sanitizes external or relative URLs before passing them into DOM sinks.
+ * Enforces an explicit allowlist of HTTP/HTTPS schemes (and optional safe relative paths),
+ * rejecting dangerous protocols (javascript:, vbscript:, data:, file:), control characters,
+ * backslash tricks, and protocol-relative targets (//).
+ */
+export function sanitizeUrl(
+	url: string | null | undefined,
+	options: SanitizeUrlOptions = {},
+): string | null {
+	if (!url || typeof url !== "string") {
+		return null;
+	}
+
+	for (let i = 0; i < url.length; i++) {
+		const code = url.charCodeAt(i);
+		if (code < 32 || code === 127) {
+			return null;
+		}
+	}
+
+	const trimmed = url.trim();
+	if (trimmed === "") {
+		return null;
+	}
+
+	if (
+		trimmed.startsWith("//") ||
+		trimmed.startsWith("\\\\") ||
+		trimmed.startsWith("/\\") ||
+		trimmed.startsWith("\\/")
+	) {
+		return null;
+	}
+
+	const allowRelative = options.allowRelative ?? true;
+	const firstSlash = trimmed.indexOf("/");
+	const firstQuery = trimmed.indexOf("?");
+	const firstHash = trimmed.indexOf("#");
+	const firstColon = trimmed.indexOf(":");
+
+	const firstDelimiterCandidates = [firstSlash, firstQuery, firstHash].filter(
+		(idx) => idx !== -1,
+	);
+	const firstDelimiter =
+		firstDelimiterCandidates.length > 0
+			? Math.min(...firstDelimiterCandidates)
+			: Number.POSITIVE_INFINITY;
+
+	const hasSchemePrefix =
+		!trimmed.startsWith("/") &&
+		firstColon !== -1 &&
+		firstColon < firstDelimiter;
+
+	if (hasSchemePrefix || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+		if (!/^https?:\/\//i.test(trimmed)) {
+			return null;
+		}
+		try {
+			const parsed = new URL(trimmed);
+			if (
+				(parsed.protocol === "http:" || parsed.protocol === "https:") &&
+				parsed.hostname.length > 0
+			) {
+				return trimmed;
+			}
+			return null;
+		} catch {
+			return null;
+		}
+	}
+
+	if (!allowRelative) {
+		return null;
+	}
+
+	return trimmed;
+}
 
 /**
  * Validates whether an authentication token matches Laravel Sanctum specifications

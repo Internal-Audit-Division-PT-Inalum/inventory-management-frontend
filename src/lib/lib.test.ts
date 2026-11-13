@@ -239,5 +239,13 @@ describe("Lib Utilities Unit Tests", () => {
 		expect(resolveMediaUrl("https://images.unsplash.com/photo-123")).toBe(
 			"https://images.unsplash.com/photo-123",
 		);
+
+		// Rejects malicious schemes and protocol-relative bypasses (fail-closed)
+		expect(resolveMediaUrl("javascript:alert(1)")).toBeNull();
+		expect(resolveMediaUrl("java\tscript:alert(1)")).toBeNull();
+		expect(
+			resolveMediaUrl("data:text/html,<script>alert(1)</script>"),
+		).toBeNull();
+		expect(resolveMediaUrl("//evil.example/track.png")).toBeNull();
 	});
 });

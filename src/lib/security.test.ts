@@ -4,6 +4,7 @@ import {
 	isValidSanctumToken,
 	sanitizeAuthHeader,
 	sanitizeRedirectPath,
+	sanitizeUrl,
 } from "./security";
 
 describe("Security Hardening & Token Sanitization", () => {
@@ -107,6 +108,60 @@ describe("Security Hardening & Token Sanitization", () => {
 			expect(sanitizeRedirectPath(null)).toBe("/");
 			expect(sanitizeRedirectPath("")).toBe("/");
 			expect(sanitizeRedirectPath("relative-without-slash")).toBe("/");
+		});
+	});
+
+	describe("sanitizeUrl", () => {
+		it("permits valid HTTP/HTTPS URLs and safe relative paths", () => {
+			expect(sanitizeUrl("https://inventory.inalum.id/storage/img.webp")).toBe(
+				"https://inventory.inalum.id/storage/img.webp",
+			);
+			expect(sanitizeUrl("http://localhost:8000/storage/item.png")).toBe(
+				"http://localhost:8000/storage/item.png",
+			);
+			expect(sanitizeUrl("/storage/items/thumb.webp")).toBe(
+				"/storage/items/thumb.webp",
+			);
+			expect(sanitizeUrl("storage/items/thumb.webp")).toBe(
+				"storage/items/thumb.webp",
+			);
+			expect(sanitizeUrl("  https://cdn.example.com/a.jpg  ")).toBe(
+				"https://cdn.example.com/a.jpg",
+			);
+		});
+
+		it("blocks dangerous schemes, case-mixed protocols, and data URIs", () => {
+			expect(sanitizeUrl("javascript:alert(1)")).toBeNull();
+			expect(sanitizeUrl("JaVaScRiPt:alert(document.domain)")).toBeNull();
+			expect(sanitizeUrl("javascript :alert(1)")).toBeNull();
+			expect(sanitizeUrl("vbscript:msgbox(1)")).toBeNull();
+			expect(
+				sanitizeUrl("data:text/html,<script>alert(1)</script>"),
+			).toBeNull();
+			expect(sanitizeUrl("file:///etc/passwd")).toBeNull();
+			expect(sanitizeUrl("blob:https://example.com/uuid")).toBeNull();
+		});
+
+		it("blocks control character obfuscation, backslash tricks, and protocol-relative URLs", () => {
+			expect(sanitizeUrl("java\tscript:alert(1)")).toBeNull();
+			expect(sanitizeUrl("java\nscript:alert(1)")).toBeNull();
+			expect(sanitizeUrl("https://example.com/\u0000evil")).toBeNull();
+			expect(sanitizeUrl("//evil.example/payload.png")).toBeNull();
+			expect(sanitizeUrl("/\\evil.example/payload.png")).toBeNull();
+			expect(sanitizeUrl("\\\\evil.example\\share")).toBeNull();
+		});
+
+		it("respects allowRelative=false and rejects empty or malformed values", () => {
+			expect(
+				sanitizeUrl("/storage/item.png", { allowRelative: false }),
+			).toBeNull();
+			expect(
+				sanitizeUrl("storage/item.png", { allowRelative: false }),
+			).toBeNull();
+			expect(sanitizeUrl("http:malformed")).toBeNull();
+			expect(sanitizeUrl(null)).toBeNull();
+			expect(sanitizeUrl(undefined)).toBeNull();
+			expect(sanitizeUrl("   ")).toBeNull();
 		});
 	});
 
