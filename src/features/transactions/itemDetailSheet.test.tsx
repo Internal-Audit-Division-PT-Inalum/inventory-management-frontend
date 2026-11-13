@@ -260,6 +260,7 @@ describe("ItemDetailSheet Component (Task P3.1)", () => {
 	});
 
 	it("copies SKU to clipboard when copy button is pressed", async () => {
+		const user = userEvent.setup();
 		const writeTextMock = vi.fn().mockResolvedValue(undefined);
 		Object.defineProperty(navigator, "clipboard", {
 			value: {
@@ -278,7 +279,7 @@ describe("ItemDetailSheet Component (Task P3.1)", () => {
 		);
 
 		const copyBtn = screen.getByLabelText("Salin SKU");
-		fireEvent.click(copyBtn);
+		await user.click(copyBtn);
 
 		expect(writeTextMock).toHaveBeenCalledWith("ATK-PPR-A4");
 	});

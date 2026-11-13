@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -188,7 +194,7 @@ describe("Layout Components Suite", () => {
 	});
 
 	describe("AppShell Component", () => {
-		it("renders children content with AppHeader and BottomNav", () => {
+		it("renders children content with AppHeader and BottomNav", async () => {
 			render(
 				<MemoryRouter initialEntries={["/"]}>
 					<AppShell>
@@ -197,12 +203,16 @@ describe("Layout Components Suite", () => {
 				</MemoryRouter>,
 			);
 
+			await act(async () => {
+				await Promise.resolve();
+			});
+
 			expect(screen.getByText("INVENTORY SYSTEM")).toBeDefined();
 			expect(screen.getByTestId("test-content")).toBeDefined();
 			expect(screen.getByTestId("bottom-nav-catalog")).toBeDefined();
 		});
 
-		it("supports hiding header or bottom nav via props", () => {
+		it("supports hiding header or bottom nav via props", async () => {
 			render(
 				<MemoryRouter initialEntries={["/"]}>
 					<AppShell showHeader={false} showBottomNav={false}>
@@ -210,6 +220,10 @@ describe("Layout Components Suite", () => {
 					</AppShell>
 				</MemoryRouter>,
 			);
+
+			await act(async () => {
+				await Promise.resolve();
+			});
 
 			expect(screen.queryByText("INVENTORY SYSTEM")).toBeNull();
 			expect(screen.getByTestId("fullscreen-content")).toBeDefined();

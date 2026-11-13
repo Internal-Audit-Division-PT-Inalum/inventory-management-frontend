@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -57,6 +57,11 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 			status: "unauthenticated",
 		});
 		vi.clearAllMocks();
+		vi.spyOn(api, "get").mockResolvedValue({
+			status: 304,
+			data: null,
+			headers: {},
+		});
 	});
 
 	afterEach(async () => {
@@ -121,6 +126,9 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 			expect(screen.getByText("Pembaruan PIN Wajib")).toBeDefined();
 			expect(screen.getByText("Wajib Diganti")).toBeDefined();
 		});
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 30));
+		});
 
 		// -------------------------------------------------------------------------
 		// LANGKAH 3: Pegawai memperbarui PIN sementara menjadi PIN baru yang kuat
@@ -154,12 +162,22 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 		// -------------------------------------------------------------------------
 		cleanup();
 		renderFullAuthApp("/");
+		await waitFor(() => {
+			expect(screen.getByText("Total Barang")).toBeDefined();
+		});
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 40));
+		});
 
 		await waitFor(() => {
 			expect(screen.getByText("INVENTORY SYSTEM")).toBeDefined();
 			expect(screen.getByText(/Mahesa Gya/i)).toBeDefined();
 			expect(screen.getAllByText("MHS").length).toBeGreaterThanOrEqual(1);
 			expect(screen.getAllByText("Online").length).toBeGreaterThanOrEqual(1);
+			expect(screen.getByText("Total Barang")).toBeDefined();
+		});
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 40));
 		});
 
 		// -------------------------------------------------------------------------
@@ -199,9 +217,11 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 			},
 		};
 
-		await expect(
-			responseInterceptor.rejected(mock401SessionError),
-		).rejects.toEqual(mock401SessionError);
+		await act(async () => {
+			await expect(
+				responseInterceptor.rejected(mock401SessionError),
+			).rejects.toEqual(mock401SessionError);
+		});
 
 		// Verifikasi: Status sesi beralih ke 'expired', event global terpancar
 		expect(useAuthStore.getState().status).toBe("expired");
@@ -219,17 +239,25 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 		// LANGKAH 6: Pegawai Login Kembali & Mencoba Logout dengan Peringatan Antrean
 		// -------------------------------------------------------------------------
 		// Kembalikan status authenticated dengan PIN yang sudah valid
-		useAuthStore.getState().setSession({
-			...mockFirstTimeSession,
-			must_change_pin: false,
-			employee: {
-				...mockFirstTimeSession.employee,
+		act(() => {
+			useAuthStore.getState().setSession({
+				...mockFirstTimeSession,
 				must_change_pin: false,
-			},
+				employee: {
+					...mockFirstTimeSession.employee,
+					must_change_pin: false,
+				},
+			});
 		});
 
 		cleanup();
 		renderFullAuthApp("/");
+		await waitFor(() => {
+			expect(screen.getByText("Total Barang")).toBeDefined();
+		});
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 40));
+		});
 
 		const logoutBtn = screen.getByRole("button", { name: /keluar/i });
 		await user.click(logoutBtn);
@@ -259,5 +287,8 @@ describe("Full Employee Authentication Lifecycle Integration Suite", () => {
 		const remainingOutbox = await db.outbox.toArray();
 		expect(remainingOutbox.length).toBe(1);
 		expect(remainingOutbox[0].clientUuid).toBe("offline-tx-important-001");
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 25));
+		});
 	});
 });

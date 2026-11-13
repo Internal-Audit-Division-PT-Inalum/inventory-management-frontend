@@ -30,6 +30,7 @@ describe("OutboxPage Integration Tests (Task P5.9)", () => {
 			).toBeDefined();
 			const tabAll = screen.getByTestId("tab-all");
 			expect(tabAll.getAttribute("aria-selected")).toBe("true");
+			expect(screen.getByText(/Antrean Offline Kosong/i)).toBeDefined();
 		});
 	});
 
@@ -45,6 +46,7 @@ describe("OutboxPage Integration Tests (Task P5.9)", () => {
 			expect(tabNeedsAction.getAttribute("aria-selected")).toBe("true");
 			const tabAll = screen.getByTestId("tab-all");
 			expect(tabAll.getAttribute("aria-selected")).toBe("false");
+			expect(screen.getByText(/Tidak Ada Transaksi Bermasalah/i)).toBeDefined();
 		});
 	});
 
@@ -60,6 +62,7 @@ describe("OutboxPage Integration Tests (Task P5.9)", () => {
 			expect(tabPending.getAttribute("aria-selected")).toBe("true");
 			const tabAll = screen.getByTestId("tab-all");
 			expect(tabAll.getAttribute("aria-selected")).toBe("false");
+			expect(screen.getByText(/Tidak Ada Antrean Menunggu/i)).toBeDefined();
 		});
 	});
 });

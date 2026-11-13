@@ -139,7 +139,8 @@ describe("TransactionForm Component (Task P3.2)", () => {
 		expect(decBtn.disabled).toBe(true);
 	});
 
-	it("increments and decrements quantity via stepper buttons", () => {
+	it("increments and decrements quantity via stepper buttons", async () => {
+		const user = userEvent.setup();
 		render(
 			<TransactionForm
 				item={mockConsumableItem}
@@ -154,18 +155,19 @@ describe("TransactionForm Component (Task P3.2)", () => {
 			"stepper-quantity-input",
 		) as HTMLInputElement;
 
-		fireEvent.click(incBtn);
+		await user.click(incBtn);
 		expect(input.value).toBe("2");
 		expect((decBtn as HTMLButtonElement).disabled).toBe(false);
 
-		fireEvent.click(incBtn);
+		await user.click(incBtn);
 		expect(input.value).toBe("3");
 
-		fireEvent.click(decBtn);
+		await user.click(decBtn);
 		expect(input.value).toBe("2");
 	});
 
-	it("applies quick addition chips (+1, +5, +10) and Semua (Max)", () => {
+	it("applies quick addition chips (+1, +5, +10) and Semua (Max)", async () => {
+		const user = userEvent.setup();
 		render(
 			<TransactionForm
 				item={mockConsumableItem}
@@ -179,15 +181,15 @@ describe("TransactionForm Component (Task P3.2)", () => {
 		) as HTMLInputElement;
 
 		// Click +5 chip
-		fireEvent.click(screen.getByText("+5"));
+		await user.click(screen.getByText("+5"));
 		expect(input.value).toBe("6");
 
 		// Click +10 chip
-		fireEvent.click(screen.getByText("+10"));
+		await user.click(screen.getByText("+10"));
 		expect(input.value).toBe("16");
 
 		// Click Semua chip
-		fireEvent.click(screen.getByText("Semua (40)"));
+		await user.click(screen.getByText("Semua (40)"));
 		expect(input.value).toBe("40");
 	});
 

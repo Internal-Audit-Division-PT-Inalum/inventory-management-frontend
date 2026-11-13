@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +21,7 @@ describe("IosQueueWarningBanner Component & Guide Modal Suite", () => {
 	});
 
 	it("does not render when there are no warnings and outbox is clean", async () => {
+		const outboxSpy = vi.spyOn(db, "getOutboxItems");
 		render(
 			<MemoryRouter>
 				<IosQueueWarningBanner />
@@ -28,8 +29,12 @@ describe("IosQueueWarningBanner Component & Guide Modal Suite", () => {
 		);
 
 		await waitFor(() => {
-			expect(screen.queryByTestId("ios-queue-warning-banner")).toBeNull();
+			expect(outboxSpy).toHaveBeenCalled();
 		});
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(screen.queryByTestId("ios-queue-warning-banner")).toBeNull();
 	});
 
 	it("renders stale outbox warning banner when item is older than 24 hours", async () => {

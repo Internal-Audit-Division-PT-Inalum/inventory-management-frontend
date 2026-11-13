@@ -280,6 +280,10 @@ describe("Catalog Synchronization & ETag Engine", () => {
 				useCatalogSync({ autoSync: false, syncOnMount: false }),
 			);
 
+			await act(async () => {
+				await Promise.resolve();
+			});
+
 			// Call sync twice simultaneously
 			let firstCall: Promise<unknown>;
 			let secondCall: Promise<unknown>;

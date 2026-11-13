@@ -24,5 +24,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Full CI Pipeline (Biome, Typecheck, Vitest, Build)
+      - name: Audit Production Dependencies
+        run: npm run audit:prod
+
+      - name: Run Full CI Pipeline (Biome, Typecheck, E2E Typecheck, Vitest, Build)
         run: npm run ci

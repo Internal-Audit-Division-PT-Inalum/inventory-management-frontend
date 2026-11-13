@@ -73,6 +73,12 @@ export function ItemLedgerHistory({
 	retry,
 }: ItemLedgerHistoryProps) {
 	const [page, setPage] = React.useState(1);
+	const [prevItemId, setPrevItemId] = React.useState(itemId);
+
+	if (itemId !== prevItemId) {
+		setPrevItemId(itemId);
+		setPage(1);
+	}
 
 	const { ledgers, meta, isLoading, isError, refetch, isFetching } =
 		useItemLedger(itemId, {
@@ -80,11 +86,6 @@ export function ItemLedgerHistory({
 			perPage: 10,
 			retry,
 		});
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page to 1 when itemId changes
-	React.useEffect(() => {
-		setPage(1);
-	}, [itemId]);
 
 	const totalPages = meta?.last_page ?? 1;
 	const totalItems = meta?.total ?? ledgers.length;
