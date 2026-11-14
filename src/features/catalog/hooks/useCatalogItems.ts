@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SYNC_ENGINE_EVENT } from "@/features/sync";
 import { TRANSACTION_COMMITTED_EVENT } from "@/features/transactions/lib/outboxEvents";
 import { calculateProjectedStocksBatch } from "@/features/transactions/lib/projectedStock";
@@ -56,8 +56,12 @@ export function useCatalogItems(
 	} = useCatalogLocations();
 	const [rawItems, setRawItems] = useState<Item[]>([]);
 	const [isItemsLoading, setIsItemsLoading] = useState(true);
+	const isMountedRef = useRef(true);
+	const loadRequestIdRef = useRef(0);
 
 	const loadItems = useCallback(async () => {
+		const requestId = ++loadRequestIdRef.current;
+
 		try {
 			const queryOptions = {
 				searchTerm: searchTerm.trim() || undefined,
@@ -91,21 +95,29 @@ export function useCatalogItems(
 				};
 			});
 
+			if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+				return;
+			}
 			setRawItems(enrichedWithProjections);
 		} catch (err) {
+			if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+				return;
+			}
 			console.error("Gagal memuat barang katalog:", err);
 		} finally {
-			setIsItemsLoading(false);
+			if (isMountedRef.current && requestId === loadRequestIdRef.current) {
+				setIsItemsLoading(false);
+			}
 		}
 	}, [searchTerm, locationId, type, stockStatus]);
 
 	useEffect(() => {
-		let isMounted = true;
+		isMountedRef.current = true;
 
 		loadItems();
 
 		const handleCatalogSynced = () => {
-			if (isMounted) {
+			if (isMountedRef.current) {
 				loadItems();
 			}
 		};
@@ -117,7 +129,7 @@ export function useCatalogItems(
 		}
 
 		return () => {
-			isMounted = false;
+			isMountedRef.current = false;
 			if (typeof window !== "undefined") {
 				window.removeEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
 				window.removeEventListener(

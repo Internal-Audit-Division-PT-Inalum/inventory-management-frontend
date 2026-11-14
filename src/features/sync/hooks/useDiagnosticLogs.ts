@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type DiagnosticLog, type DiagnosticLogLevel, db } from "@/lib/db";
 import {
 	copyLogsToClipboard,
@@ -25,30 +25,46 @@ export function useDiagnosticLogs(options: UseDiagnosticLogsOptions = {}) {
 	const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [isCopied, setIsCopied] = useState<boolean>(false);
+	const isMountedRef = useRef<boolean>(true);
+	const loadRequestIdRef = useRef<number>(0);
+	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	/**
 	 * Memuat seluruh log dari IndexedDB.
 	 */
 	const loadLogs = useCallback(async () => {
+		const requestId = ++loadRequestIdRef.current;
 		try {
 			setIsLoading(true);
 			const [items, count] = await Promise.all([
 				db.getDiagnosticLogs(limit),
 				db.getDiagnosticLogCount(),
 			]);
+			if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+				return;
+			}
 			setLogs(items);
 			setTotalCount(count);
 		} finally {
-			setIsLoading(false);
+			if (isMountedRef.current && requestId === loadRequestIdRef.current) {
+				setIsLoading(false);
+			}
 		}
 	}, [limit]);
 
 	// Inisialisasi awal & listener pembaruan event
 	useEffect(() => {
-		loadLogs();
+		isMountedRef.current = true;
+		void loadLogs();
 
 		if (!autoRefresh || typeof window === "undefined") {
-			return;
+			return () => {
+				isMountedRef.current = false;
+				if (copyTimeoutRef.current) {
+					clearTimeout(copyTimeoutRef.current);
+					copyTimeoutRef.current = null;
+				}
+			};
 		}
 
 		const handleUpdate = () => {
@@ -59,6 +75,11 @@ export function useDiagnosticLogs(options: UseDiagnosticLogsOptions = {}) {
 		window.addEventListener(SYNC_ENGINE_EVENT, handleUpdate);
 
 		return () => {
+			isMountedRef.current = false;
+			if (copyTimeoutRef.current) {
+				clearTimeout(copyTimeoutRef.current);
+				copyTimeoutRef.current = null;
+			}
 			window.removeEventListener(DIAGNOSTIC_LOG_UPDATED_EVENT, handleUpdate);
 			window.removeEventListener(SYNC_ENGINE_EVENT, handleUpdate);
 		};
@@ -172,9 +193,17 @@ export function useDiagnosticLogs(options: UseDiagnosticLogsOptions = {}) {
 			const content =
 				format === "json" ? await exportAsJson() : await exportAsText();
 			const success = await copyLogsToClipboard(content);
-			if (success) {
+			if (success && isMountedRef.current) {
 				setIsCopied(true);
-				setTimeout(() => setIsCopied(false), 2000);
+				if (copyTimeoutRef.current) {
+					clearTimeout(copyTimeoutRef.current);
+				}
+				copyTimeoutRef.current = setTimeout(() => {
+					if (isMountedRef.current) {
+						setIsCopied(false);
+					}
+					copyTimeoutRef.current = null;
+				}, 2000);
 			}
 			return success;
 		},

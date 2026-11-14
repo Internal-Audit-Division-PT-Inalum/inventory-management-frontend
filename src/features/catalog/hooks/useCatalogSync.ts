@@ -35,18 +35,24 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 	});
 
 	const isSyncingRef = useRef(false);
+	const isMountedRef = useRef(true);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
 
 	// Muat metadata awal dari IndexedDB
 	useEffect(() => {
-		let isMounted = true;
-
 		async function loadInitialMeta() {
 			const [lastSynced, etag] = await Promise.all([
 				db.getMeta("catalog_last_synced_at"),
 				db.getMeta("catalog_etag"),
 			]);
 
-			if (isMounted) {
+			if (isMountedRef.current) {
 				setState((prev) => ({
 					...prev,
 					lastSyncedAt: prev.lastSyncedAt || lastSynced || null,
@@ -56,10 +62,6 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 		}
 
 		loadInitialMeta();
-
-		return () => {
-			isMounted = false;
-		};
 	}, []);
 
 	// Fungsi eksekusi sinkronisasi
@@ -69,29 +71,35 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 		}
 
 		isSyncingRef.current = true;
-		setState((prev) => ({ ...prev, isSyncing: true, error: null }));
+		if (isMountedRef.current) {
+			setState((prev) => ({ ...prev, isSyncing: true, error: null }));
+		}
 
 		try {
 			const result: CatalogSyncResult = await syncCatalog(opts);
 
-			setState((prev) => ({
-				...prev,
-				isSyncing: false,
-				lastSyncedAt: result.lastSyncedAt,
-				etag: result.etag || prev.etag,
-				isOffline: Boolean(result.isOffline),
-				error: result.error || null,
-			}));
+			if (isMountedRef.current) {
+				setState((prev) => ({
+					...prev,
+					isSyncing: false,
+					lastSyncedAt: result.lastSyncedAt,
+					etag: result.etag || prev.etag,
+					isOffline: Boolean(result.isOffline),
+					error: result.error || null,
+				}));
+			}
 
 			return result;
 		} catch (err: unknown) {
 			const msg =
 				err instanceof Error ? err.message : "Terjadi kesalahan sinkronisasi";
-			setState((prev) => ({
-				...prev,
-				isSyncing: false,
-				error: msg,
-			}));
+			if (isMountedRef.current) {
+				setState((prev) => ({
+					...prev,
+					isSyncing: false,
+					error: msg,
+				}));
+			}
 		} finally {
 			isSyncingRef.current = false;
 		}
@@ -134,6 +142,7 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 		if (typeof window === "undefined") return;
 
 		const handleCatalogSynced = (event: Event) => {
+			if (!isMountedRef.current) return;
 			const customEvent = event as CustomEvent<CatalogSyncResult | undefined>;
 			const detail = customEvent.detail;
 			if (detail?.lastSyncedAt) {
@@ -150,6 +159,7 @@ export function useCatalogSync(options: UseCatalogSyncOptions = {}) {
 					db.getMeta("catalog_last_synced_at"),
 					db.getMeta("catalog_etag"),
 				]).then(([lastSynced, etag]) => {
+					if (!isMountedRef.current) return;
 					setState((prev) => ({
 						...prev,
 						lastSyncedAt: lastSynced || prev.lastSyncedAt,

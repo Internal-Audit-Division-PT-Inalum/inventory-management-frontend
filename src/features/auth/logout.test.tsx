@@ -240,6 +240,12 @@ describe("Logout with Outbox Warning Feature Suite", () => {
 	describe("HomePage Logout Button Interaction", () => {
 		it("triggers logout confirmation dialog on home page when outbox has pending items", async () => {
 			const user = userEvent.setup();
+			vi.spyOn(api, "get").mockResolvedValue({
+				data: {
+					success: true,
+					data: [],
+				},
+			});
 
 			await db.outbox.put({
 				clientUuid: "uuid-home-test",
@@ -253,7 +259,12 @@ describe("Logout with Outbox Warning Feature Suite", () => {
 				createdAt: new Date().toISOString(),
 			});
 
-			const queryClient = new QueryClient();
+			const queryClient = new QueryClient({
+				defaultOptions: {
+					queries: { retry: false },
+					mutations: { retry: false },
+				},
+			});
 
 			render(
 				<QueryClientProvider client={queryClient}>
@@ -265,6 +276,11 @@ describe("Logout with Outbox Warning Feature Suite", () => {
 					</MemoryRouter>
 				</QueryClientProvider>,
 			);
+
+			await waitFor(() => {
+				expect(screen.getByText("Tidak Ada Barang Ditemukan")).toBeDefined();
+				expect(screen.getByText(/Disinkronkan:/i)).toBeDefined();
+			});
 
 			const logoutButton = screen.getByRole("button", { name: /keluar/i });
 			await user.click(logoutButton);

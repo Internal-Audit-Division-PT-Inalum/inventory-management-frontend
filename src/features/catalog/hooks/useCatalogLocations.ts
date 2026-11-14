@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { db } from "@/lib/db";
 import type { Location } from "@/types/api";
 import { CATALOG_SYNC_EVENT } from "../api/syncCatalog";
@@ -16,26 +16,38 @@ export interface UseCatalogLocationsResult {
 export function useCatalogLocations(): UseCatalogLocationsResult {
 	const [locations, setLocations] = useState<Location[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const isMountedRef = useRef(true);
+	const loadRequestIdRef = useRef(0);
 
 	const loadLocations = useCallback(async () => {
+		const requestId = ++loadRequestIdRef.current;
+
 		try {
 			const allLocations = await db.locations.orderBy("name").toArray();
+			if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+				return;
+			}
 			setLocations(allLocations);
 		} catch (err) {
+			if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
+				return;
+			}
 			console.error("Gagal memuat daftar lokasi:", err);
 		} finally {
-			setIsLoading(false);
+			if (isMountedRef.current && requestId === loadRequestIdRef.current) {
+				setIsLoading(false);
+			}
 		}
 	}, []);
 
 	useEffect(() => {
-		let isMounted = true;
+		isMountedRef.current = true;
 
 		loadLocations();
 
 		// Dengarkan event sinkronisasi katalog untuk pembaruan otomatis
 		const handleCatalogSynced = () => {
-			if (isMounted) {
+			if (isMountedRef.current) {
 				loadLocations();
 			}
 		};
@@ -45,7 +57,7 @@ export function useCatalogLocations(): UseCatalogLocationsResult {
 		}
 
 		return () => {
-			isMounted = false;
+			isMountedRef.current = false;
 			if (typeof window !== "undefined") {
 				window.removeEventListener(CATALOG_SYNC_EVENT, handleCatalogSynced);
 			}

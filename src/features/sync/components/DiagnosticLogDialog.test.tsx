@@ -36,6 +36,13 @@ describe("DiagnosticLogDialog Component Suite", () => {
 			expect(
 				screen.getByText("Belum ada entri log diagnostik tercatat."),
 			).toBeDefined();
+			expect(
+				(
+					screen.getByRole("button", {
+						name: "Segarkan Log",
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(false);
 		});
 	});
 
@@ -280,6 +287,13 @@ describe("DiagnosticLogDialog Component Suite", () => {
 
 		await waitFor(() => {
 			expect(screen.getByRole("button", { name: "Tutup" })).toBeDefined();
+			expect(
+				(
+					screen.getByRole("button", {
+						name: "Segarkan Log",
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(false);
 		});
 
 		const closeButton = screen.getByRole("button", { name: "Tutup" });

@@ -27,7 +27,6 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 	const {
 		register,
 		handleSubmit,
-		setValue,
 		formState: { errors },
 	} = useForm<LoginFormData>({
 		resolver: zodResolver(loginSchema),
@@ -126,9 +125,7 @@ export function LoginForm({ onSuccess, initialNamecode = "" }: LoginFormProps) {
 						className="pl-10 font-mono tracking-wider uppercase placeholder:normal-case placeholder:font-sans placeholder:tracking-normal"
 						{...register("namecode", {
 							onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-								setValue("namecode", e.target.value.toUpperCase(), {
-									shouldValidate: true,
-								});
+								e.target.value = e.target.value.toUpperCase();
 							},
 						})}
 					/>
