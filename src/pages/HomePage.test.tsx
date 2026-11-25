@@ -164,4 +164,31 @@ describe("HomePage with Monitoring Dashboard (Task P6.1)", () => {
 		// Verifikasi bahwa klik tidak melempar error dan interaksi berjalan mulus
 		expect(viewAllBtn).toBeDefined();
 	});
+
+	it("membuka ItemDetailSheet langsung ketika item di widget peringatan stok kritis diklik", async () => {
+		const queryClient = createTestQueryClient();
+		render(
+			<QueryClientProvider client={queryClient}>
+				<MemoryRouter>
+					<HomePage />
+				</MemoryRouter>
+			</QueryClientProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Peringatan Stok Kritis")).toBeDefined();
+		});
+
+		const alertSection = screen.getByLabelText(
+			"Peringatan Stok Kritis dan Menipis",
+		);
+		const urgentButtons = alertSection.querySelectorAll("button");
+		expect(urgentButtons.length).toBeGreaterThan(0);
+
+		fireEvent.click(urgentButtons[0]);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("item-detail-sheet")).toBeDefined();
+		});
+	});
 });

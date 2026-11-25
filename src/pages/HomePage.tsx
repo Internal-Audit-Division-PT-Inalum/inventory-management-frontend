@@ -25,6 +25,15 @@ import {
 	useRecentActivities,
 	useStockMetrics,
 } from "@/features/monitoring";
+import {
+	ItemDetailSheet,
+	type TransactionAction,
+	TransactionFeedbackDialog,
+	type TransactionFormData,
+	type TransactSubmitResult,
+	useTransactionSubmit,
+} from "@/features/transactions";
+import type { Item } from "@/types/api";
 
 export function HomePage() {
 	const employee = useAuthStore(selectCurrentEmployee);
@@ -66,6 +75,37 @@ export function HomePage() {
 
 	const [catalogStockFilter, setCatalogStockFilter] =
 		React.useState<CatalogStockFilter>("all");
+	const [selectedUrgentItem, setSelectedUrgentItem] =
+		React.useState<Item | null>(null);
+	const [feedbackResult, setFeedbackResult] =
+		React.useState<TransactSubmitResult | null>(null);
+	const [feedbackItem, setFeedbackItem] = React.useState<Item | null>(null);
+	const [showFeedbackDialog, setShowFeedbackDialog] = React.useState(false);
+
+	const { submitTransaction, isSubmitting } = useTransactionSubmit();
+
+	const handleUrgentItemClick = (clickedItem: Item) => {
+		const matchedHealth = urgentItems.find(
+			(health) => health.item.id === clickedItem.id,
+		);
+		const hydratedItem: Item =
+			clickedItem.location || !matchedHealth?.location
+				? clickedItem
+				: { ...clickedItem, location: matchedHealth.location };
+
+		setSelectedUrgentItem(hydratedItem);
+	};
+
+	const handleUrgentTransactSubmit = async (
+		item: Item,
+		action: TransactionAction,
+		formData: TransactionFormData,
+	) => {
+		const result = await submitTransaction(item, action, formData);
+		setFeedbackResult(result);
+		setFeedbackItem(item);
+		setShowFeedbackDialog(true);
+	};
 
 	// Interaksi filter cepat dari kartu KPI ke tampilan katalog
 	const handleKPICardClick = (filterType: KPICardFilterType) => {
@@ -169,6 +209,7 @@ export function HomePage() {
 				urgentItems={urgentItems}
 				totalAttentionCount={metrics.attentionNeededCount}
 				isLoading={isMetricsLoading}
+				onItemClick={handleUrgentItemClick}
 				onViewAllClick={handleViewAllUrgentStock}
 			/>
 
@@ -184,6 +225,24 @@ export function HomePage() {
 			<section id="catalog-section" aria-label="Katalog Inventaris">
 				<CatalogView initialStockFilter={catalogStockFilter} />
 			</section>
+
+			<ItemDetailSheet
+				item={selectedUrgentItem}
+				open={Boolean(selectedUrgentItem)}
+				enableInternalForm={true}
+				isSubmitting={isSubmitting}
+				onOpenChange={(open) => {
+					if (!open) setSelectedUrgentItem(null);
+				}}
+				onTransactSubmit={handleUrgentTransactSubmit}
+			/>
+
+			<TransactionFeedbackDialog
+				result={feedbackResult}
+				item={feedbackItem}
+				open={showFeedbackDialog}
+				onOpenChange={setShowFeedbackDialog}
+			/>
 
 			<LogoutConfirmDialog
 				open={showWarningDialog}
