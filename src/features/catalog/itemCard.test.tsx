@@ -186,4 +186,20 @@ describe("ItemCard Component", () => {
 		expect(screen.getByText("Perkiraan: 2 · Dipinjam 3 unit")).toBeDefined();
 		expect(screen.getByText("1 Antrean")).toBeDefined();
 	});
+
+	it("displays concise minimum stock indicator on card and highlights low-stock asset", () => {
+		const lowAsset: Item = {
+			...mockAsset,
+			current_stock: 1,
+			minimum_stock: 1,
+			borrowed_quantity: 0,
+		};
+
+		render(<ItemCard item={lowAsset} />);
+
+		expect(screen.getByTestId("item-min-stock").textContent).toBe(
+			"Min: 1 unit",
+		);
+		expect(screen.getByText("Tersedia 1 · Dipinjam 0 unit")).toBeDefined();
+	});
 });

@@ -3,6 +3,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, resolveMediaUrl } from "@/lib/utils";
 import type { Item } from "@/types/api";
+import { formatItemLocationLabel } from "../lib/rackOrder";
 
 export interface ItemCardProps {
 	item: Item;
@@ -95,11 +96,13 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 			item.projected_borrowed !== undefined
 				? item.projected_borrowed
 				: item.borrowed_quantity || 0;
+		const isAssetLowStock =
+			item.minimum_stock > 0 && displayStock <= item.minimum_stock;
 
 		if (displayStock > 0) {
 			return (
 				<Badge
-					variant={isEstimated ? "warning" : "ok"}
+					variant={isEstimated || isAssetLowStock ? "warning" : "ok"}
 					className={cn(
 						"font-medium text-xs flex items-center gap-1",
 						isEstimated &&
@@ -187,6 +190,14 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 						<span className="text-[11px] font-mono text-slate-400 font-medium tracking-wide">
 							{item.sku}
 						</span>
+						{item.rack_code && (
+							<span
+								data-testid="item-rack-badge"
+								className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-[#004785] border border-slate-200/80 shrink-0"
+							>
+								Rak {item.rack_code}
+							</span>
+						)}
 						{item.has_pending_transactions && (
 							<span
 								data-testid="item-pending-badge"
@@ -208,13 +219,21 @@ export function ItemCard({ item, onSelect, className }: ItemCardProps) {
 					<div className="flex items-center gap-1 text-xs text-slate-500">
 						<MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
 						<span className="truncate max-w-[160px] sm:max-w-[200px]">
-							{item.location
-								? `${item.location.code} • ${item.location.name}`
-								: "Lokasi belum ditentukan"}
+							{formatItemLocationLabel(item)}
 						</span>
 					</div>
 
-					<div className="shrink-0">{renderStockBadge()}</div>
+					<div className="flex items-center gap-2 flex-wrap sm:justify-end shrink-0">
+						{item.minimum_stock > 0 && (
+							<span
+								data-testid="item-min-stock"
+								className="text-[10px] font-medium text-slate-400 whitespace-nowrap"
+							>
+								Min: {item.minimum_stock} {item.unit}
+							</span>
+						)}
+						{renderStockBadge()}
+					</div>
 				</div>
 			</div>
 
