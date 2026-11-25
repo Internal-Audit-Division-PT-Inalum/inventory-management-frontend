@@ -32,6 +32,7 @@ export interface Item {
 	type: InventoryItemType;
 	unit: string;
 	location_id: string;
+	rack_code?: string | null;
 	current_stock: number;
 	minimum_stock: number;
 	image_url: string | null;
