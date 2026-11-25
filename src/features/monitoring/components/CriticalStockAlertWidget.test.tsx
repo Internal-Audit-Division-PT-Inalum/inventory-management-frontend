@@ -127,4 +127,30 @@ describe("CriticalStockAlertWidget Component (Task P6.1)", () => {
 		fireEvent.click(screen.getByText("Kertas A4 70gsm"));
 		expect(handleItemClick).toHaveBeenCalledWith(mockUrgentItems[0].item);
 	});
+
+	it("menampilkan format lokasi Lemari dan Rak ketika rack_code tersedia", () => {
+		const rackItem: ItemStockHealth = {
+			...mockUrgentItems[0],
+			item: {
+				...mockUrgentItems[0].item,
+				id: "item-rack-b2i",
+				name: "Tipex",
+				rack_code: "B2-I",
+			},
+			location: {
+				id: "loc-b",
+				name: "Lemari B",
+				code: "LEMARI-B",
+			},
+		};
+
+		render(
+			<CriticalStockAlertWidget
+				urgentItems={[rackItem]}
+				totalAttentionCount={1}
+			/>,
+		);
+
+		expect(screen.getByText("Lemari B • Rak B2-I")).toBeDefined();
+	});
 });

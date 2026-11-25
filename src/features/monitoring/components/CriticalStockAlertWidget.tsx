@@ -2,6 +2,7 @@ import {
 	AlertCircle,
 	ArrowRight,
 	CheckCircle2,
+	ChevronRight,
 	Clock,
 	MapPin,
 	Sparkles,
@@ -16,6 +17,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatItemLocationLabel } from "@/features/catalog/lib/rackOrder";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types/api";
 import type { ItemStockHealth, StockHealthCategory } from "../types";
@@ -183,10 +185,10 @@ export function CriticalStockAlertWidget({
 					<div className="flex flex-col gap-2">
 						{displayItems.map((health) => {
 							const item = health.item;
-							const locationName =
-								health.location?.name ||
-								(item.location ? item.location.name : null) ||
-								"Lokasi Belum Ditentukan";
+							const locationName = formatItemLocationLabel(
+								item,
+								health.location,
+							);
 
 							const cardContent = (
 								<>
@@ -233,12 +235,20 @@ export function CriticalStockAlertWidget({
 										</div>
 									</div>
 
-									<div className="shrink-0 flex flex-col items-end gap-1">
-										{getStatusBadge(health.status)}
-										{health.deficit > 0 && (
-											<span className="text-[10px] font-medium text-red-600/90">
-												- {health.deficit} {item.unit}
-											</span>
+									<div className="shrink-0 flex items-center gap-1.5">
+										<div className="flex flex-col items-end gap-1">
+											{getStatusBadge(health.status)}
+											{health.deficit > 0 && (
+												<span className="text-[10px] font-medium text-red-600/90">
+													- {health.deficit} {item.unit}
+												</span>
+											)}
+										</div>
+										{onItemClick && (
+											<ChevronRight
+												className="h-4 w-4 text-slate-300 shrink-0"
+												aria-hidden="true"
+											/>
 										)}
 									</div>
 								</>
