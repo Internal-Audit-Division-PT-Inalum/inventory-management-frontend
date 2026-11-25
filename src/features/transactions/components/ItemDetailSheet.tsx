@@ -165,10 +165,13 @@ export function ItemDetailSheet({
 		}
 
 		// Aset (Keputusan D8: Tersedia X · Dipinjam Y tanpa nama peminjam)
+		const isAssetLowStock =
+			item.minimum_stock > 0 && displayStock <= item.minimum_stock;
+
 		if (displayStock > 0) {
 			return (
 				<Badge
-					variant={hasPending ? "warning" : "ok"}
+					variant={hasPending || isAssetLowStock ? "warning" : "ok"}
 					className={cn(
 						"font-semibold text-xs flex items-center gap-1",
 						hasPending &&
@@ -376,12 +379,18 @@ export function ItemDetailSheet({
 
 									<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
 										<div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
-											Lokasi Rak
+											Lokasi Lemari &amp; Rak
 										</div>
 										<div className="flex items-center gap-1.5 text-xs text-slate-800">
 											<MapPin className="h-3.5 w-3.5 text-[#004785] shrink-0" />
 											<span className="font-semibold truncate">
-												{item.location?.name || "Belum ditentukan"}
+												{item.location
+													? item.rack_code
+														? `${item.location.name} • Rak ${item.rack_code}`
+														: item.location.name
+													: item.rack_code
+														? `Rak ${item.rack_code}`
+														: "Belum ditentukan"}
 											</span>
 										</div>
 									</div>
@@ -451,7 +460,12 @@ export function ItemDetailSheet({
 											</div>
 										</div>
 									) : isAsset ? (
-										<div className="grid grid-cols-2 gap-3 text-center">
+										<div
+											className={cn(
+												"grid gap-2.5 text-center",
+												item.minimum_stock > 0 ? "grid-cols-3" : "grid-cols-2",
+											)}
+										>
 											<div className="rounded-lg bg-emerald-50/70 p-2.5 border border-emerald-100">
 												<div className="text-[11px] text-emerald-800 mb-0.5 font-medium">
 													{hasPending
@@ -478,19 +492,33 @@ export function ItemDetailSheet({
 													</span>
 												</div>
 											</div>
+											{item.minimum_stock > 0 && (
+												<div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
+													<div className="text-[11px] text-slate-500 mb-0.5 font-medium">
+														Stok Minimum
+													</div>
+													<div className="text-xl font-bold text-slate-600">
+														{item.minimum_stock}{" "}
+														<span className="text-xs font-normal text-slate-500">
+															{item.unit}
+														</span>
+													</div>
+												</div>
+											)}
 										</div>
 									) : null}
 
-									{isConsumable && displayStock <= item.minimum_stock && (
-										<div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 border border-amber-200/80">
-											<AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-											<span>
-												Stok telah mencapai atau di bawah batas minimum (
-												{item.minimum_stock} {item.unit}). Segera lakukan
-												restock.
-											</span>
-										</div>
-									)}
+									{item.minimum_stock > 0 &&
+										displayStock <= item.minimum_stock && (
+											<div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 border border-amber-200/80">
+												<AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+												<span>
+													Stok telah mencapai atau di bawah batas minimum (
+													{item.minimum_stock} {item.unit}). Segera lakukan
+													restock.
+												</span>
+											</div>
+										)}
 								</div>
 
 								{item.description && (

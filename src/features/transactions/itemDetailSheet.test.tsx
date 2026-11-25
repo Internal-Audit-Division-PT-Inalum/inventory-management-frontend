@@ -310,4 +310,22 @@ describe("ItemDetailSheet Component (Task P3.1)", () => {
 		expect(screen.getByText("Stok Perkiraan")).toBeDefined();
 		expect(screen.getByText(/Perkiraan: 40 rim/i)).toBeDefined();
 	});
+
+	it("displays minimum stock card and threshold warning for low-stock asset with minimum_stock > 0", () => {
+		const lowAsset: Item = {
+			...mockAssetItem,
+			current_stock: 1,
+			minimum_stock: 1,
+			borrowed_quantity: 0,
+		};
+
+		render(
+			<ItemDetailSheet item={lowAsset} open={true} onOpenChange={vi.fn()} />,
+		);
+
+		expect(screen.getByText("Stok Minimum")).toBeDefined();
+		expect(
+			screen.getByText(/Stok telah mencapai atau di bawah batas minimum/i),
+		).toBeDefined();
+	});
 });
