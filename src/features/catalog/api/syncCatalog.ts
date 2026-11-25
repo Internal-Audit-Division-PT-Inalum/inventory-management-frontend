@@ -91,13 +91,19 @@ export async function syncCatalog(
 			return result;
 		}
 
-		// Respons 200 OK — Ada pembaruan katalog
+		// Respons 200 OK — Ada pembaruan katalog; pastikan daftar lokasi/lemari ikut disegarkan
 		const items: Item[] = catalogRes.items;
 		const newEtag = catalogRes.etag;
+		const resolvedLocations =
+			locationsRes.length > 0
+				? locationsRes
+				: shouldFetchLocations
+					? []
+					: await getLocations().catch(() => []);
 
 		await db.bulkUpsertCatalog({
 			items,
-			locations: locationsRes.length > 0 ? locationsRes : undefined,
+			locations: resolvedLocations.length > 0 ? resolvedLocations : undefined,
 			etag: newEtag,
 			syncedAt: nowIso,
 		});
