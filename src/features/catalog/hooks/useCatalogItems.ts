@@ -5,11 +5,13 @@ import { calculateProjectedStocksBatch } from "@/features/transactions/lib/proje
 import { db } from "@/lib/db";
 import type { InventoryItemType, Item, Location } from "@/types/api";
 import { CATALOG_SYNC_EVENT } from "../api/syncCatalog";
+import { extractOrderedRacks } from "../lib/rackOrder";
 import { useCatalogLocations } from "./useCatalogLocations";
 
 export interface UseCatalogItemsOptions {
 	searchTerm?: string;
 	locationId?: string;
+	rackCode?: string;
 	type?: InventoryItemType | "all";
 	stockStatus?: "all" | "low_or_empty" | "available";
 	sortBy?: "name" | "sku" | "stock_asc" | "stock_desc" | "updated_at";
@@ -28,6 +30,7 @@ export interface UseCatalogItemsResult {
 	items: Item[];
 	locations: Location[];
 	locationMap: Map<string, Location>;
+	availableRacks: string[];
 	isLoading: boolean;
 	stats: CatalogStats;
 	hasActiveFilters: boolean;
@@ -44,6 +47,7 @@ export function useCatalogItems(
 	const {
 		searchTerm = "",
 		locationId = "all",
+		rackCode = "all",
 		type = "all",
 		stockStatus = "all",
 		sortBy = "name",
@@ -141,9 +145,25 @@ export function useCatalogItems(
 		};
 	}, [loadItems]);
 
-	// Perkaya item dengan entitas Location dan terapkan pengurutan
+	// Daftar kode rak unik yang tersedia pada lokasi/lemari terpilih (sebelum filter rackCode diterapkan)
+	const availableRacks = useMemo(
+		() => extractOrderedRacks(rawItems),
+		[rawItems],
+	);
+
+	// Perkaya item dengan entitas Location, filter rackCode bila dipilih, dan terapkan pengurutan
 	const items = useMemo(() => {
-		const enriched = rawItems.map((item) => ({
+		const normalizedRack =
+			rackCode && rackCode !== "all" ? rackCode.trim().toLowerCase() : null;
+
+		const filtered = normalizedRack
+			? rawItems.filter(
+					(item) =>
+						(item.rack_code?.trim().toLowerCase() ?? "") === normalizedRack,
+				)
+			: rawItems;
+
+		const enriched = filtered.map((item) => ({
 			...item,
 			location: item.location || locationMap.get(item.location_id),
 		}));
@@ -164,7 +184,7 @@ export function useCatalogItems(
 					return a.name.localeCompare(b.name, "id");
 			}
 		});
-	}, [rawItems, locationMap, sortBy]);
+	}, [rawItems, locationMap, rackCode, sortBy]);
 
 	// Hitung ringkasan statistik katalog secara real-time
 	const stats = useMemo<CatalogStats>(() => {
@@ -174,7 +194,7 @@ export function useCatalogItems(
 		let outOfStock = 0;
 		let borrowedAssets = 0;
 
-		for (const item of rawItems) {
+		for (const item of items) {
 			if (item.type === "consumable") {
 				consumables++;
 			} else if (item.type === "asset") {
@@ -192,18 +212,19 @@ export function useCatalogItems(
 		}
 
 		return {
-			totalItems: rawItems.length,
+			totalItems: items.length,
 			consumablesCount: consumables,
 			assetsCount: assets,
 			lowStockCount: lowStock,
 			outOfStockCount: outOfStock,
 			totalBorrowedAssets: borrowedAssets,
 		};
-	}, [rawItems]);
+	}, [items]);
 
 	const hasActiveFilters = Boolean(
 		(searchTerm && searchTerm.trim() !== "") ||
 			(locationId && locationId !== "all") ||
+			(rackCode && rackCode !== "all") ||
 			(type && type !== "all") ||
 			(stockStatus && stockStatus !== "all"),
 	);
@@ -212,6 +233,7 @@ export function useCatalogItems(
 		items,
 		locations,
 		locationMap,
+		availableRacks,
 		isLoading: isItemsLoading || isLocationsLoading,
 		stats,
 		hasActiveFilters,
