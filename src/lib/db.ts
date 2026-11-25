@@ -53,6 +53,7 @@ export interface SyncMeta {
 export interface CatalogQueryOptions {
 	searchTerm?: string;
 	locationId?: string;
+	rackCode?: string;
 	type?: InventoryItemType | "all";
 	stockStatus?: "all" | "low_or_empty" | "available";
 }
@@ -159,6 +160,18 @@ export class InventoryDatabase extends Dexie {
 			async () => {
 				if (locations && locations.length > 0) {
 					await this.locations.bulkPut(locations);
+
+					const incomingLocIds = new Set(locations.map((loc) => loc.id));
+					const allLocalLocIds = await this.locations
+						.toCollection()
+						.primaryKeys();
+					const obsoleteLocIds = allLocalLocIds.filter(
+						(id) => !incomingLocIds.has(id),
+					);
+
+					if (obsoleteLocIds.length > 0) {
+						await this.locations.bulkDelete(obsoleteLocIds);
+					}
 				}
 
 				if (items.length > 0) {
@@ -196,7 +209,7 @@ export class InventoryDatabase extends Dexie {
 	 * Queries cached catalog items supporting multi-dimensional filtering and search.
 	 */
 	async getCatalogItems(options: CatalogQueryOptions = {}): Promise<Item[]> {
-		const { searchTerm, locationId, type, stockStatus } = options;
+		const { searchTerm, locationId, rackCode, type, stockStatus } = options;
 
 		let collection = this.items.toCollection();
 
@@ -212,12 +225,21 @@ export class InventoryDatabase extends Dexie {
 
 		let results = await collection.toArray();
 
+		if (rackCode && rackCode !== "all") {
+			const normalizedRack = rackCode.trim().toLowerCase();
+			results = results.filter(
+				(item) =>
+					(item.rack_code?.trim().toLowerCase() ?? "") === normalizedRack,
+			);
+		}
+
 		if (searchTerm && searchTerm.trim() !== "") {
 			const normalized = searchTerm.trim().toLowerCase();
 			results = results.filter(
 				(item) =>
 					item.name.toLowerCase().includes(normalized) ||
-					item.sku.toLowerCase().includes(normalized),
+					item.sku.toLowerCase().includes(normalized) ||
+					(item.rack_code?.toLowerCase().includes(normalized) ?? false),
 			);
 		}
 
