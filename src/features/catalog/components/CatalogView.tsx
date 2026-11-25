@@ -1,4 +1,5 @@
 import {
+	Layers,
 	MapPin,
 	PackageSearch,
 	QrCode,
@@ -74,6 +75,9 @@ export function CatalogView({
 	const [selectedLocationId, setSelectedLocationId] = React.useState<
 		string | undefined
 	>(() => qr.locationId ?? undefined);
+	const [selectedRackCode, setSelectedRackCode] = React.useState<
+		string | undefined
+	>(undefined);
 	const [typeFilter, setTypeFilter] = React.useState<CatalogTypeFilter>("all");
 	const [stockFilter, setStockFilter] =
 		React.useState<CatalogStockFilter>(initialStockFilter);
@@ -111,22 +115,37 @@ export function CatalogView({
 	React.useEffect(() => {
 		if (qr.locationId) {
 			setSelectedLocationId(qr.locationId);
+			setSelectedRackCode(undefined);
 		}
 	}, [qr.locationId]);
+
+	const handleSelectLocation = (locationId: string | undefined) => {
+		setSelectedLocationId(locationId);
+		setSelectedRackCode(undefined);
+	};
 
 	const queryOptions: UseCatalogItemsOptions = React.useMemo(
 		() => ({
 			searchTerm: searchQuery,
 			locationId: selectedLocationId,
+			rackCode: selectedRackCode,
 			type: typeFilter,
 			stockStatus: stockFilter,
 			sortBy,
 		}),
-		[searchQuery, selectedLocationId, typeFilter, stockFilter, sortBy],
+		[
+			searchQuery,
+			selectedLocationId,
+			selectedRackCode,
+			typeFilter,
+			stockFilter,
+			sortBy,
+		],
 	);
 
 	// Hook query katalog reaktif dari Dexie
-	const { items, stats, isLoading, refetch } = useCatalogItems(queryOptions);
+	const { items, stats, availableRacks, isLoading, refetch } =
+		useCatalogItems(queryOptions);
 
 	// Nama lokasi yang dipilih (jika ada)
 	const selectedLocationName = React.useMemo(() => {
@@ -138,6 +157,7 @@ export function CatalogView({
 	const handleResetFilters = () => {
 		setSearchQuery("");
 		setSelectedLocationId(undefined);
+		setSelectedRackCode(undefined);
 		setTypeFilter("all");
 		setStockFilter("all");
 		setSortBy("name");
@@ -146,6 +166,7 @@ export function CatalogView({
 	const hasActiveFilters =
 		searchQuery.trim().length > 0 ||
 		Boolean(selectedLocationId) ||
+		Boolean(selectedRackCode) ||
 		typeFilter !== "all" ||
 		stockFilter !== "all";
 
@@ -174,13 +195,13 @@ export function CatalogView({
 					<div className="flex items-center gap-2 min-w-0">
 						<QrCode className="h-4 w-4 shrink-0 text-[#004785]" />
 						<div className="truncate">
-							<span className="font-semibold">Mode Pindai QR Rak:</span>{" "}
+							<span className="font-semibold">Mode Pindai QR Lemari:</span>{" "}
 							<span className="font-medium">{selectedLocationName}</span>
 						</div>
 					</div>
 					<button
 						type="button"
-						onClick={() => setSelectedLocationId(undefined)}
+						onClick={() => handleSelectLocation(undefined)}
 						className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-[#004785] shadow-2xs hover:bg-blue-100 transition-colors shrink-0"
 					>
 						Tampilkan Semua
@@ -201,7 +222,7 @@ export function CatalogView({
 					type="search"
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
-					placeholder="Cari nama barang atau SKU..."
+					placeholder="Cari nama barang, SKU, atau kode rak..."
 					aria-label="Cari barang inventaris"
 					data-testid="catalog-search-input"
 					className={cn(
@@ -226,12 +247,12 @@ export function CatalogView({
 					<div className="flex items-center justify-between px-0.5 text-[11px] font-semibold text-slate-600">
 						<span className="flex items-center gap-1">
 							<MapPin className="h-3 w-3 text-[#004785]" />
-							<span>Lokasi Rak:</span>
+							<span>Lokasi Lemari:</span>
 						</span>
 						{selectedLocationId && (
 							<button
 								type="button"
-								onClick={() => setSelectedLocationId(undefined)}
+								onClick={() => handleSelectLocation(undefined)}
 								className="text-[10px] font-medium text-[#004785] hover:underline"
 							>
 								Reset Lokasi
@@ -242,7 +263,7 @@ export function CatalogView({
 					<div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
 						<button
 							type="button"
-							onClick={() => setSelectedLocationId(undefined)}
+							onClick={() => handleSelectLocation(undefined)}
 							data-testid="location-chip-all"
 							className={cn(
 								"shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition-all select-none touch-target min-h-[32px]",
@@ -260,7 +281,7 @@ export function CatalogView({
 								<button
 									key={loc.id}
 									type="button"
-									onClick={() => setSelectedLocationId(loc.id)}
+									onClick={() => handleSelectLocation(loc.id)}
 									data-testid={`location-chip-${loc.id}`}
 									className={cn(
 										"shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition-all select-none touch-target min-h-[32px] truncate max-w-[160px]",
@@ -270,6 +291,62 @@ export function CatalogView({
 									)}
 								>
 									{loc.name}
+								</button>
+							);
+						})}
+					</div>
+				</div>
+			)}
+
+			{availableRacks.length > 0 && (
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-center justify-between px-0.5 text-[11px] font-semibold text-slate-600">
+						<span className="flex items-center gap-1">
+							<Layers className="h-3 w-3 text-[#004785]" />
+							<span>Sub-Rak:</span>
+						</span>
+						{selectedRackCode && (
+							<button
+								type="button"
+								onClick={() => setSelectedRackCode(undefined)}
+								className="text-[10px] font-medium text-[#004785] hover:underline"
+							>
+								Reset Rak
+							</button>
+						)}
+					</div>
+
+					<div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+						<button
+							type="button"
+							onClick={() => setSelectedRackCode(undefined)}
+							data-testid="rack-chip-all"
+							className={cn(
+								"shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition-all select-none touch-target min-h-[30px]",
+								!selectedRackCode
+									? "bg-slate-800 text-white shadow-2xs font-semibold"
+									: "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50",
+							)}
+						>
+							Semua Rak
+						</button>
+
+						{availableRacks.map((rack) => {
+							const isSelected = selectedRackCode === rack;
+							return (
+								<button
+									key={rack}
+									type="button"
+									onClick={() => setSelectedRackCode(rack)}
+									data-testid={`rack-chip-${rack}`}
+									className={cn(
+										"shrink-0 rounded-lg px-2.5 py-1 font-mono text-xs font-medium transition-all select-none touch-target min-h-[30px]",
+										isSelected
+											? "bg-slate-800 text-white shadow-2xs font-semibold"
+											: "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50",
+									)}
+								>
+									Rak {rack}
 								</button>
 							);
 						})}

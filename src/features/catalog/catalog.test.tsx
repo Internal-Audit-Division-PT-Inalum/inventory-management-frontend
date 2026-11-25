@@ -275,7 +275,7 @@ describe("Catalog Feature Full Integration Suite", () => {
 
 		await waitFor(() => {
 			expect(screen.getByTestId("qr-landing-banner")).toBeDefined();
-			expect(screen.getByText(/Mode Pindai QR Rak:/i)).toBeDefined();
+			expect(screen.getByText(/Mode Pindai QR Lemari:/i)).toBeDefined();
 			expect(
 				screen.getAllByText("Lemari ATK Ruang Auditor").length,
 			).toBeGreaterThanOrEqual(1);
